@@ -1,0 +1,10 @@
+[package]
+name = "frontend"
+version = "0.1.0"
+authors = ["Jaakko Hannikainen <jaakko.hannikainen@solita.fi>"]
+edition = "2018"
+
+[dependencies]
+yew = "0.8.0"
+log = "0.4"
+web_logger = "0.1"

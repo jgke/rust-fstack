@@ -1,0 +1,8 @@
+[workspace]
+members = [
+    "src/entry",
+
+    "src/frontend",
+
+    "src/backend",
+]

@@ -1,0 +1,12 @@
+[package]
+name = "entry"
+version = "0.1.0"
+authors = ["Jaakko Hannikainen <jaakko.hannikainen@solita.fi>"]
+edition = "2018"
+default-run = "entry"
+
+[target.'cfg(cargo_web)'.dependencies]
+frontend = { path="../frontend" }
+
+[target.'cfg(not(cargo_web))'.dependencies]
+backend = { path="../backend" }
