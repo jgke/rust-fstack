@@ -1,82 +1,109 @@
-#![feature(proc_macro_hygiene, decl_macro)]
+#![feature(proc_macro_hygiene, decl_macro, type_alias_impl_trait)]
 
+#[macro_use]
+extern crate lazy_static;
 extern crate gotham;
 #[macro_use]
 extern crate gotham_derive;
 extern crate hyper;
 extern crate postgres;
 
-use std::sync::{Arc, Mutex};
+mod db;
 
-use postgres::{Connection, TlsMode};
-
+use gotham::error::*;
+use gotham::handler::{NewHandler, Handler, IntoHandlerFuture, HandlerFuture};
 use gotham::middleware::state::StateMiddleware;
 use gotham::pipeline::single::single_pipeline;
-use gotham::pipeline::single_middleware;
+use gotham::pipeline::new_pipeline;
 use gotham::router::builder::*;
 use gotham::router::Router;
-use gotham::state::{FromState, State};
+use gotham::state::State;
+use std::panic::RefUnwindSafe;
 
-use serde::Serialize;
+use db::DBConnectionInstance;
 
-#[derive(Clone, StateData)]
+#[derive(Clone, Debug, StateData)]
 struct S {
-    connection: Arc<Mutex<Connection>>
 }
 
 impl S {
-    fn new(conn: Connection) -> Self {
-        let connection = Arc::new(Mutex::new(conn));
-        S { connection }
+    fn new() -> Self {
+        S { }
     }
 }
 
-#[derive(Debug, Serialize)]
-struct Person {
-    name: String
+lazy_static! {
+    static ref DB_CONNECTION: DBConnectionInstance = db::get_db_connection().unwrap();
 }
 
-pub fn say_hello(state: State) -> (State, String) {
-    let res_vec: Vec<Person> = {
-        let s = S::borrow_from(&state);
-        s.connection.lock().unwrap().query("SELECT name FROM person", &[]).unwrap()
-            .into_iter()
-            .map(|row| Person { name: row.get(0) })
-            .collect()
+pub fn say_hello(state: State, connection: db::Connection) -> (State, String) {
+    let result = {
+        connection.transaction(|tx| {
+            db::get_person(tx, "Foo Bar")
+                .ok_or(())
+        })
+        //db::get_person(connection, "Foo Bar");
+        //db::get_person(connection, "Foo Bar")
     };
-    (state, serde_json::to_string(&res_vec).unwrap())
+    (state, serde_json::to_string(&result).unwrap())
+}
+
+#[derive(Copy, Clone, Debug)]
+struct DBHandlerI<F, R>
+where F: FnOnce(State, db::Connection) -> R + Send,
+      R: IntoHandlerFuture {
+    f: F
+}
+
+#[derive(Debug)]
+struct DBHandler<F, R>
+where F: FnOnce(State, db::Connection) -> R + Send,
+      R: IntoHandlerFuture {
+    f: F
+}
+
+fn r<F, R>(f: F) -> DBHandlerI<F, R>
+where F: FnOnce(State, db::Connection) -> R + Send,
+      R: IntoHandlerFuture {
+    DBHandlerI { f }
+}
+
+impl<F, R> NewHandler for DBHandlerI<F, R>
+where F: FnOnce(State, db::Connection) -> R + Copy + Send + Sync + RefUnwindSafe,
+      R: IntoHandlerFuture {
+    type Instance = DBHandler<F, R>;
+
+    fn new_handler(&self) -> Result<Self::Instance> {
+        Ok(DBHandler { f: self.f })
+    }
+}
+
+impl<F, R> Handler for DBHandler<F, R>
+where
+F: FnOnce(State, db::Connection) -> R + Send,
+R: IntoHandlerFuture {
+    fn handle(self, state: State) -> Box<HandlerFuture> {
+        let conn = DB_CONNECTION.take();
+        (self.f)(state, db::Connection::new(&conn)).into_handler_future()
+    }
 }
 
 fn router(state: S) -> Router {
-    // create our state middleware to share the counter
     let middleware = StateMiddleware::new(state);
-
-    // create a middleware pipeline from our middleware
-    let pipeline = single_middleware(middleware);
-
-    // construct a basic chain from our pipeline
+    let pipeline = new_pipeline().add(middleware).build();
     let (chain, pipelines) = single_pipeline(pipeline);
 
     // build a router with the chain & pipeline
     build_router(chain, pipelines, |route| {
-        route.get("/").to(say_hello);
+        route.get("/").to_new_handler(r(say_hello));
     })
 }
 
-fn get_db_connection() -> Result<Connection, postgres::Error> {
-    Connection::connect("postgres://postgres:password@localhost:5432/postgres", TlsMode::None)
-}
-
 pub fn start() {
-    match get_db_connection() {
-        Ok(connection) => {
-            let state = S::new(connection);
-            let addr = "127.0.0.1:7878";
-            println!("Listening for requests at http://{}", addr);
-            gotham::start(addr, router(state))
-        }
-        Err(s) => { panic!("{}", s) }
-    }
+    let state = S::new();
+    let addr = "127.0.0.1:7878";
+    println!("Listening for requests at http://{}", addr);
+    gotham::start(addr, router(state))
 }
 
 #[cfg(test)]
@@ -87,7 +114,7 @@ mod tests {
 
     #[test]
     fn receive_hello_world_response() {
-        let s = S::new(get_db_connection().unwrap());
+        let s = S::new(db::get_db_connection().unwrap());
         let test_server = TestServer::new(router(s)).unwrap();
         let response = test_server
             .client()
