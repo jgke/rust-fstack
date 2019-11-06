@@ -37,10 +37,16 @@ impl Connection {
         Connection { connection }
     }
     pub fn transaction<F, R, E>(self, callback: F) -> Result<R, E>
-    where F: FnOnce(&Transaction) -> Result<R, E> {
+    where F: FnOnce(Transaction) -> Result<R, E> {
         let tx = self.connection.transaction().unwrap();
-        let res = callback(&Transaction { tx: Arc::new(tx) })?;
+        let res = callback(Transaction { tx: Arc::new(tx) })?;
         Ok(res)
+    }
+}
+
+impl Transaction<'_> {
+    pub fn commit(self) -> Result<(), postgres::error::Error> {
+        Arc::try_unwrap(self.tx).unwrap().commit()
     }
 }
 
