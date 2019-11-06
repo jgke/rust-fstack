@@ -5,7 +5,9 @@ authors = ["Jaakko Hannikainen <jaakko.hannikainen@solita.fi>"]
 edition = "2018"
 
 [dependencies]
-yew = "0.8.0"
+failure = "0.1"
 log = "0.4"
-web_logger = "0.1"
 stdweb = "0.4"
+types = { path = "../types" }
+web_logger = "0.1"
+yew = "0.8.0"

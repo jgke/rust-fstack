@@ -112,8 +112,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "frontend"
 version = "0.1.0"
 dependencies = [
+ "failure 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "stdweb 0.4.20 (registry+https://github.com/rust-lang/crates.io-index)",
+ "types 0.1.0",
  "web_logger 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "yew 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -359,6 +361,14 @@ dependencies = [
  "quote 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "syn 1.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "unicode-xid 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "types"
+version = "0.1.0"
+dependencies = [
+ "serde 1.0.102 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 1.0.41 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
