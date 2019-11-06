@@ -9,8 +9,11 @@ gotham = "0.4.0"
 gotham_derive = "0.4.0"
 postgres = "0.15.2"
 hyper = "0.12.35"
-serde = "1.0.60"
+mime = "0.3"
+serde = { version = "1.0.60", features = ["derive"]}
 serde_json = "1.0.40"
 lazy_static = "1.4.0"
 r2d2 = "0.8"
 r2d2_postgres = "0.14.0"
+futures = "0.1"
+types = { path="../types" }

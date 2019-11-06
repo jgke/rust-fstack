@@ -2,21 +2,15 @@
 
 #[macro_use]
 extern crate lazy_static;
-extern crate gotham;
 #[macro_use]
 extern crate gotham_derive;
-extern crate hyper;
-
-extern crate r2d2;
-extern crate r2d2_postgres;
-extern crate postgres;
 
 mod db;
 mod db_traits;
-mod handler;
+mod handler_utils;
 mod router;
 
-pub fn start() {
+pub fn main() {
     let state = router::S::new();
     let addr = "127.0.0.1:7878";
     println!("Listening for requests at http://{}", addr);
