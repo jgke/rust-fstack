@@ -69,10 +69,14 @@ impl Component for FrontPage {
 impl Renderable<FrontPage> for FrontPage {
     fn view(&self) -> Html<Self> {
         html! {
-            <div>
-                <button onclick=|_| Msg::FetchNew>{ "Fetch person list" }</button>
-                { self.render_persons() }
-            </div>
+            //<div class="container">
+                <div class="person-list">
+                    <button class="btn btn-primary" onclick=|_| Msg::FetchNew>{ "Fetch person list" }</button>
+                    <div>
+                        { self.render_persons() }
+                    </div>
+                </div>
+            //</div>
         }
     }
 }
