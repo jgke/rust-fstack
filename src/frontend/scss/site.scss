@@ -15,3 +15,15 @@ body {
     display: flex;
     flex-direction: row;
 }
+
+.login-form-container {
+    @extend .card;
+    @extend .p-3;
+    width: 24rem;
+}
+.login-form-header {
+    @extend .card-body;
+}
+.login-form {
+    @extend .card-body;
+}
