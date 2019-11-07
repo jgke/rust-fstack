@@ -3,7 +3,7 @@ use yew::prelude::*;
 use yew::format::{Nothing, Json};
 use yew::services::fetch::{FetchService, FetchTask, Request, Response};
 use stdweb::traits::IEvent;
-use types::Thread;
+use types::{Message, Thread};
 use serde_json::json;
 
 pub struct Forum {
@@ -28,7 +28,8 @@ pub enum Msg {
 
     ChooseThread(i32),
 
-    FetchReady(Result<Vec<Thread>, Error>),
+    ThreadsFetched(Result<Vec<Thread>, Error>),
+    ThreadFetched(Result<Thread, Error>),
 }
 
 impl Component for Forum {
@@ -72,9 +73,13 @@ impl Component for Forum {
             Msg::ChooseThread(id) => {
                 self.ft = Some(self.choose_thread(id));
             }
-            Msg::FetchReady(threads) => {
+            Msg::ThreadsFetched(threads) => {
                 self.updating = false;
                 self.threads = threads.ok();
+            }
+            Msg::ThreadFetched(thread) => {
+                self.updating = false;
+                self.current_thread = thread.ok();
             }
         }
         true
@@ -125,7 +130,10 @@ impl Forum {
     fn render_current_thread(&self) -> Html<Self> {
         if let Some(thread) = &self.current_thread {
             html! {
-                "Foo"
+                <div class="thread">
+                    <h4>{ &thread.title }</h4>
+                    { self.render_current_messages(&thread.messages.as_ref().unwrap_or(&vec![])) }
+                </div>
             }
         } else {
             html! {
@@ -136,12 +144,30 @@ impl Forum {
         }
     }
 
+    fn render_current_messages(&self, messages: &[Message]) -> Html<Self> {
+        if messages.is_empty() {
+            html! {
+                "No messages yet! Be the first one to post here ;)"
+            }
+        } else {
+            html! {
+                <ul class="list-group">
+                { for messages.iter().map(
+                        |msg| html! {
+                            <li class="list-group-item">{ &msg.content }</li>
+                        })
+                }
+                </ul>
+            }
+        }
+    }
+
     fn fetch_threads(&mut self) -> FetchTask {
         let callback = self.link.send_back(
             move |response: Response<Json<Result<Vec<Thread>, Error>>>| {
                 let (meta, Json(data)) = response.into_parts();
                 if meta.status.is_success() {
-                    Msg::FetchReady(data)
+                    Msg::ThreadsFetched(data)
                 } else {
                     Msg::FetchError
                 }
@@ -153,10 +179,10 @@ impl Forum {
 
     fn choose_thread(&mut self, id: i32) -> FetchTask {
         let callback = self.link.send_back(
-            move |response: Response<Json<Result<Vec<Thread>, Error>>>| {
+            move |response: Response<Json<Result<Thread, Error>>>| {
                 let (meta, Json(data)) = response.into_parts();
                 if meta.status.is_success() {
-                    Msg::FetchReady(data)
+                    Msg::ThreadFetched(data)
                 } else {
                     Msg::FetchError
                 }
