@@ -7,3 +7,8 @@ edition = "2018"
 [dependencies]
 serde = { version = "1.0.60", features = ["derive"]}
 serde_json = "1.0.40"
+
+[target.'cfg(not(cargo_web))'.dependencies]
+hyper = "0.12"
+gotham = "0.4.0"
+gotham_derive = "0.4.0"

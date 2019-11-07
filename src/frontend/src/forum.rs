@@ -3,7 +3,7 @@ use yew::prelude::*;
 use yew::format::{Nothing, Json};
 use yew::services::fetch::{FetchService, FetchTask, Request, Response};
 use stdweb::traits::IEvent;
-use types::{Message, Thread};
+use types::{CreateMessage, CreateThread, Message, Thread};
 use serde_json::json;
 
 pub struct Forum {
@@ -235,9 +235,10 @@ impl Forum {
                 }
             },
         );
-        let title = &self.create_thread_field;
+        let body = CreateThread { title: self.create_thread_field.to_string() };
+
         let request = Request::post("http://localhost:80/thread")
-            .body(Ok(format!("{{\"title\": \"{}\"}}", title)))
+            .body(Ok(serde_json::to_string(&body).unwrap()))
             .unwrap();
         self.fetch_service.fetch(request, callback)
     }
@@ -253,9 +254,9 @@ impl Forum {
                 }
             },
         );
-        let content = &self.create_message_field;
+        let body = CreateMessage { content: self.create_message_field.to_string() };
         let request = Request::post(format!("http://localhost:80/thread/{}", thread_id))
-            .body(Ok(format!("{{\"content\": \"{}\"}}", content)))
+            .body(Ok(serde_json::to_string(&body).unwrap()))
             .unwrap();
         self.create_message_field = "".to_string();
         self.fetch_service.fetch(request, callback)

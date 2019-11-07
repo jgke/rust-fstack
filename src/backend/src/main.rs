@@ -7,6 +7,7 @@ extern crate gotham_derive;
 
 mod db;
 mod db_traits;
+#[macro_use]
 mod handler_utils;
 mod router;
 

@@ -13,7 +13,7 @@ pub fn create_account<T: IntoGenericConnection>(db: T, username: &str, password:
     conn.query("INSERT INTO account (username, password) VALUES ($1, $2)", &[&username, &password]).unwrap();
 }
 
-pub fn get_account<T: IntoGenericConnection>(db: T, id: u32) -> Option<Account> {
+pub fn get_account<T: IntoGenericConnection>(db: T, id: i32) -> Option<Account> {
     let conn = db.into_generic_connection();
     conn.query("SELECT id, username FROM account WHERE id=$1", &[&id])
         .unwrap()

@@ -72,3 +72,19 @@ where
                 .and_then(|s| serde_json::from_str::<T>(s).map_err(bad_request))
         })
 }
+
+macro_rules! with_json {
+    ($t: ty, $state: ident, $action: expr, $succ: expr) => {{
+    let f = extract_json::<$t>(&mut $state)
+        .map($action)
+        .map_err(|e| e.into_handler_error().with_status(StatusCode::BAD_REQUEST))
+        .then(|result| match result {
+            Ok(res) => {
+                let res = ($succ)(res);
+                Ok(($state, res))
+            },
+            Err(r) => Err(($state, r)),
+        });
+    Box::new(f)
+    }}
+}

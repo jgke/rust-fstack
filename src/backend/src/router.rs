@@ -9,6 +9,7 @@ use gotham::router::Router;
 use gotham::state::{State, FromState};
 use hyper::{Body, StatusCode};
 use serde::Deserialize;
+use types::*;
 
 use crate::handler_utils::{r, extract_json};
 use crate::db;
@@ -18,40 +19,27 @@ pub struct S { }
 impl S { pub fn new() -> Self { S { } } }
 
 #[derive(Deserialize, StateData, StaticResponseExtender)]
-struct NewAccount {
-    username: String,
-    password: String,
-}
-
-#[derive(Deserialize, StateData, StaticResponseExtender)]
-struct CreateThread {
-    title: String,
-}
-
-#[derive(Deserialize, StateData, StaticResponseExtender)]
-struct CreateMessage {
-    content: String,
-}
-
-#[derive(Deserialize, StateData, StaticResponseExtender)]
 struct ThreadId {
     id: i32,
 }
 
+#[derive(Deserialize, StateData, StaticResponseExtender)]
+struct AccountId {
+    id: i32,
+}
+
 pub fn new_account(mut state: State, connection: db::Connection) -> Box<HandlerFuture> {
-    let f = extract_json::<NewAccount>(&mut state)
-        .map(move |account| {
-            db::create_account(connection, &account.username, &account.password);
-        })
-        .map_err(|e| e.into_handler_error().with_status(StatusCode::BAD_REQUEST))
-        .then(|result| match result {
-            Ok(_) => {
-                let res = create_response(&state, StatusCode::CREATED, mime::APPLICATION_JSON, Body::empty());
-                Ok((state, res))
-            },
-            Err(r) => Err((state, r)),
-        });
-    Box::new(f)
+    with_json!(CreateAccount, state,
+               |account| db::create_account(connection, &account.username, &account.password),
+               |_| create_response(&state, StatusCode::CREATED, mime::APPLICATION_JSON, Body::empty()))
+}
+
+pub fn get_account(state: State, connection: db::Connection) -> (State, String) {
+    let account = {
+        let id = AccountId::borrow_from(&state).id;
+        db::get_account(connection, id)
+    };
+    (state, serde_json::to_string(&account).unwrap())
 }
 
 pub fn get_threads(state: State, connection: db::Connection) -> (State, String) {
@@ -67,38 +55,18 @@ pub fn get_thread(state: State, connection: db::Connection) -> (State, String) {
 }
 
 pub fn create_thread(mut state: State, connection: db::Connection) -> Box<HandlerFuture> {
-    let f = extract_json::<CreateThread>(&mut state)
-        .map(move |thread| {
-            db::create_thread(connection, &thread.title);
-        })
-        .map_err(|e| e.into_handler_error().with_status(StatusCode::BAD_REQUEST))
-        .then(|result| match result {
-            Ok(_) => {
-                let res = create_response(&state, StatusCode::CREATED, mime::APPLICATION_JSON, Body::empty());
-                Ok((state, res))
-            },
-            Err(r) => Err((state, r)),
-        });
-    Box::new(f)
+    with_json!(CreateThread, state,
+               |thread: CreateThread| db::create_thread(connection, &thread.title),
+               |_| create_response(&state, StatusCode::CREATED, mime::APPLICATION_JSON, Body::empty()))
 }
 
 
 pub fn create_message(mut state: State, connection: db::Connection) -> Box<HandlerFuture> {
     let thread_id = ThreadId::borrow_from(&state).id;
 
-    let f = extract_json::<CreateMessage>(&mut state)
-        .map(move |msg| {
-            db::create_message(connection, thread_id, &msg.content);
-        })
-        .map_err(|e| e.into_handler_error().with_status(StatusCode::BAD_REQUEST))
-        .then(|result| match result {
-            Ok(_) => {
-                let res = create_response(&state, StatusCode::CREATED, mime::APPLICATION_JSON, Body::empty());
-                Ok((state, res))
-            },
-            Err(r) => Err((state, r)),
-        });
-    Box::new(f)
+    with_json!(CreateMessage, state,
+               move |msg| db::create_message(connection, thread_id, &msg.content),
+               |_| create_response(&state, StatusCode::CREATED, mime::APPLICATION_JSON, Body::empty()))
 }
 
 pub fn router(state: S) -> Router {
@@ -109,6 +77,7 @@ pub fn router(state: S) -> Router {
     // build a router with the chain & pipeline
     build_router(chain, pipelines, |route| {
         route.post("/account").to_new_handler(r(new_account));
+        route.get("/account/:id").to_new_handler(r(get_account));
         route.get("/thread").to_new_handler(r(get_threads));
         route.get("/thread/:id")
             .with_path_extractor::<ThreadId>()

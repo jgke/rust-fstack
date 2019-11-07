@@ -1,5 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+#[cfg(not(cargo_web))]
+#[macro_use]
+extern crate gotham_derive;
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Account {
     pub id: i32,
@@ -18,5 +22,24 @@ pub struct Thread {
 pub struct Message {
     pub id: i32,
     pub creator: i32,
+    pub content: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(not(cargo_web), derive(StateData, StaticResponseExtender))]
+pub struct CreateAccount {
+    pub username: String,
+    pub password: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(not(cargo_web), derive(StateData, StaticResponseExtender))]
+pub struct CreateThread {
+    pub title: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(not(cargo_web), derive(StateData, StaticResponseExtender))]
+pub struct CreateMessage {
     pub content: String,
 }
