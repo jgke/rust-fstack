@@ -11,7 +11,8 @@ pub struct Forum {
     threads: Option<Vec<Thread>>,
     current_thread: Option<Thread>,
     show_create_thread: bool,
-    create_thread_title: String,
+    create_thread_field: String,
+    create_message_field: String,
 
     fetch_service: FetchService,
     link: ComponentLink<Forum>,
@@ -30,6 +31,9 @@ pub enum Msg {
 
     ThreadsFetched(Result<Vec<Thread>, Error>),
     ThreadFetched(Result<Thread, Error>),
+
+    UpdateMessageField(String),
+    CreateMessage(i32),
 }
 
 impl Component for Forum {
@@ -42,7 +46,8 @@ impl Component for Forum {
             threads: None,
             current_thread: None,
             show_create_thread: false,
-            create_thread_title: "".to_string(),
+            create_thread_field: "".to_string(),
+            create_message_field: "".to_string(),
 
             fetch_service: FetchService::new(),
             link,
@@ -61,14 +66,20 @@ impl Component for Forum {
             }
             Msg::CreateThreadForm => {
                 self.show_create_thread = true;
-                self.create_thread_title = "".to_string();
+                self.create_thread_field = "".to_string();
             }
             Msg::CreateThread => {
                 self.show_create_thread = false;
                 self.ft = Some(self.create_thread())
             }
             Msg::UpdateCreateTitle(s) => {
-                self.create_thread_title = s;
+                self.create_thread_field = s;
+            }
+            Msg::UpdateMessageField(s) => {
+                self.create_message_field = s;
+            }
+            Msg::CreateMessage(thread_id) => {
+                self.ft = Some(self.create_message(thread_id));
             }
             Msg::ChooseThread(id) => {
                 self.ft = Some(self.choose_thread(id));
@@ -133,6 +144,8 @@ impl Forum {
                 <div class="thread">
                     <h4>{ &thread.title }</h4>
                     { self.render_current_messages(&thread.messages.as_ref().unwrap_or(&vec![])) }
+                    <hr />
+                    { self.create_message_field() }
                 </div>
             }
         } else {
@@ -159,6 +172,25 @@ impl Forum {
                 }
                 </ul>
             }
+        }
+    }
+
+    fn create_message_field(&self) -> Html<Self> {
+        if let Some(thread) = &self.current_thread {
+            let id = thread.id;
+            html! {
+                <form>
+                    <div class="form-group">
+                        <label for="inputMessage">{ "Message" }</label>
+                        <input id="inputMessage" class="form-control" placeholder="Create new message" autofocus=""
+                        value=&self.create_message_field oninput=|e| Msg::UpdateMessageField(e.value) />
+                    </div>
+
+                    <button class="btn btn-primary" onclick=|_| Msg::CreateMessage(id)>{ "Send message" }</button>
+                </form>
+            }
+        } else {
+            html!{}
         }
     }
 
@@ -203,11 +235,29 @@ impl Forum {
                 }
             },
         );
-        let title = &self.create_thread_title;
-        let body = Json(&json!({"title": &self.create_thread_title}));
+        let title = &self.create_thread_field;
         let request = Request::post("http://localhost:80/thread")
             .body(Ok(format!("{{\"title\": \"{}\"}}", title)))
             .unwrap();
+        self.fetch_service.fetch(request, callback)
+    }
+
+    fn create_message(&mut self, thread_id: i32) -> FetchTask {
+        let callback = self.link.send_back(
+            move |response: Response<Json<Result<(), Error>>>| {
+                let (meta, Json(data)) = response.into_parts();
+                if meta.status.is_success() {
+                    Msg::ChooseThread(thread_id)
+                } else {
+                    Msg::FetchError
+                }
+            },
+        );
+        let content = &self.create_message_field;
+        let request = Request::post(format!("http://localhost:80/thread/{}", thread_id))
+            .body(Ok(format!("{{\"content\": \"{}\"}}", content)))
+            .unwrap();
+        self.create_message_field = "".to_string();
         self.fetch_service.fetch(request, callback)
     }
 
@@ -218,7 +268,7 @@ impl Forum {
                     <div class="form-group">
                         <label for="inputTitle">{ "Title" }</label>
                         <input id="inputTitle" class="form-control" placeholder="Thread title" required="" autofocus=""
-                        value=&self.create_thread_title oninput=|e| Msg::UpdateCreateTitle(e.value) />
+                        value=&self.create_thread_field oninput=|e| Msg::UpdateCreateTitle(e.value) />
                     </div>
 
                     <button class="btn btn-primary" onclick=|_| Msg::CreateThread>{ "Create thread" }</button>

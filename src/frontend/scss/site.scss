@@ -85,3 +85,7 @@ body {
     align-items: center;
     justify-content: center;
 }
+
+.thread {
+    @extend .pt-3;
+}

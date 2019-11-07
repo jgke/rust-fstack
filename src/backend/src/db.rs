@@ -62,3 +62,8 @@ pub fn get_thread<T: IntoGenericConnection>(db: T, id: i32) -> Option<Thread> {
                        .collect())
     })
 }
+
+pub fn create_message<T: IntoGenericConnection>(db: T, thread_id: i32, message: &str) {
+    let conn = db.into_generic_connection();
+    conn.query("INSERT INTO message (thread_id, content, creator) VALUES ($1, $2, $3)", &[&thread_id, &message, &3]).unwrap();
+}

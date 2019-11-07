@@ -29,6 +29,11 @@ struct CreateThread {
 }
 
 #[derive(Deserialize, StateData, StaticResponseExtender)]
+struct CreateMessage {
+    content: String,
+}
+
+#[derive(Deserialize, StateData, StaticResponseExtender)]
 struct ThreadId {
     id: i32,
 }
@@ -77,6 +82,25 @@ pub fn create_thread(mut state: State, connection: db::Connection) -> Box<Handle
     Box::new(f)
 }
 
+
+pub fn create_message(mut state: State, connection: db::Connection) -> Box<HandlerFuture> {
+    let thread_id = ThreadId::borrow_from(&state).id;
+
+    let f = extract_json::<CreateMessage>(&mut state)
+        .map(move |msg| {
+            db::create_message(connection, thread_id, &msg.content);
+        })
+        .map_err(|e| e.into_handler_error().with_status(StatusCode::BAD_REQUEST))
+        .then(|result| match result {
+            Ok(_) => {
+                let res = create_response(&state, StatusCode::CREATED, mime::APPLICATION_JSON, Body::empty());
+                Ok((state, res))
+            },
+            Err(r) => Err((state, r)),
+        });
+    Box::new(f)
+}
+
 pub fn router(state: S) -> Router {
     let middleware = StateMiddleware::new(state);
     let pipeline = new_pipeline().add(middleware).build();
@@ -90,6 +114,9 @@ pub fn router(state: S) -> Router {
             .with_path_extractor::<ThreadId>()
             .to_new_handler(r(get_thread));
         route.post("/thread").to_new_handler(r(create_thread));
+        route.post("/thread/:id")
+            .with_path_extractor::<ThreadId>()
+            .to_new_handler(r(create_message));
     })
 }
 
