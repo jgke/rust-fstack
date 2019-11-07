@@ -57,6 +57,7 @@ body {
     @extend .p-0;
     @extend .border-left;
     @extend .border-right;
+    overflow-y: scroll;
     min-width: 300px;
     height: 100%;
     background-color: $white;
@@ -76,6 +77,7 @@ body {
 
 .thread-view {
     @extend .col;
+    overflow-y: scroll;
     height: 100%;
 }
 
