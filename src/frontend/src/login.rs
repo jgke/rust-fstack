@@ -8,9 +8,6 @@ use stdweb::web::window;
 use types::Person;
 
 pub struct Login {
-    updating: bool,
-    persons: Option<Vec<Person>>,
-
     email: String,
     password: String,
 
@@ -22,9 +19,6 @@ pub struct Login {
 }
 
 pub enum Msg {
-    FetchNew,
-    FetchError,
-    FetchReady(Result<Vec<Person>, Error>),
     UpdateEmail(String),
     UpdatePassword(String),
     Login
@@ -43,9 +37,6 @@ impl Component for Login {
 
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
         Login {
-            updating: false,
-            persons: None,
-
             email: "".to_string(),
             password: "".to_string(),
 
@@ -59,29 +50,6 @@ impl Component for Login {
 
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
-            Msg::FetchError => { }
-            Msg::FetchNew => {
-                self.updating = true;
-                let task = {
-                    let callback = self.link.send_back(
-                        move |response: Response<Json<Result<Vec<Person>, Error>>>| {
-                            let (meta, Json(data)) = response.into_parts();
-                            if meta.status.is_success() {
-                                Msg::FetchReady(data)
-                            } else {
-                                Msg::FetchError
-                            }
-                        },
-                        );
-                        let request = Request::get("http://localhost:80/").body(Nothing).unwrap();
-                        self.fetch_service.fetch(request, callback)
-                };
-                self.ft = Some(task);
-            }
-            Msg::FetchReady(persons) => {
-                self.updating = false;
-                self.persons = persons.ok();
-            }
             Msg::UpdateEmail(email) => self.email = email,
             Msg::UpdatePassword(pw) => self.password = pw,
             Msg::Login => {
@@ -118,36 +86,6 @@ impl Renderable<Login> for Login {
                     </form>
                 </div>
             </div>
-            /*<div class="container">
-                <div class="person-list">
-                    <button class="btn btn-primary" onclick=|_| Msg::FetchNew>{ "Fetch person list" }</button>
-                    <div>
-                        { self.render_persons() }
-                    </div>
-                </div>
-            </div>*/
-        }
-    }
-}
-
-fn render_person(person: &Person) -> Html<Login> {
-    html! {
-        <li>{format!("Name: {}", person.name)}</li>
-    }
-}
-
-impl Login {
-    fn render_persons(&self) -> Html<Self> {
-        if let Some(persons) = &self.persons {
-            html! {
-                <ul>
-                    { for persons.iter().map(render_person) }
-                </ul>
-            }
-        } else {
-            html! {
-                <p> { "No persons." } </p>
-            }
         }
     }
 }

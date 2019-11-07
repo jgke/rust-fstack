@@ -1,5 +1,6 @@
 use yew::prelude::*;
 use crate::login::Login;
+use crate::forum::Forum;
 
 use yew::virtual_dom::VNode;
 use yew_router::{route::Route, service::RouteService, Switch};
@@ -7,7 +8,7 @@ use yew_router::{route::Route, service::RouteService, Switch};
 
 #[derive(Clone, Switch, Debug)]
 pub enum AppRoute {
-    #[to = "/#/forum"]
+    #[to = "/#forum"]
     Forum,
     #[to = "/"]
     Login,
@@ -51,7 +52,7 @@ impl Component for Model {
                 // This might be derived in the future
                 let route_string = match route {
                     AppRoute::Login => "/",
-                    AppRoute::Forum => "/#/forum"
+                    AppRoute::Forum => "/#forum"
                 };
                 self.route_service.set_route(&route_string, ());
                 self.route = Route {
@@ -72,7 +73,7 @@ impl Renderable<Model> for Model {
                 info!("{:?}", &self.route);
                 match AppRoute::switch(self.route.clone()) {
                     Some(AppRoute::Login) => html!{<Login onlogin=|_| Msg::ChangeRoute(AppRoute::Forum)/>},
-                    Some(AppRoute::Forum) => html!{<p>{ "forum" }</p>},
+                    Some(AppRoute::Forum) => html!{<Forum />},
                     None => html!{"404"}
                 }
             }

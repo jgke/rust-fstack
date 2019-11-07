@@ -8,6 +8,7 @@ extern crate web_logger;
 
 mod login;
 mod router;
+mod forum;
 
 pub fn main() {
     web_logger::init();
