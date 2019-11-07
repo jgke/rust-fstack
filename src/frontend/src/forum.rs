@@ -10,6 +10,7 @@ use types::Thread;
 pub struct Forum {
     updating: bool,
     threads: Option<Vec<Thread>>,
+    current_thread: Option<Thread>,
 
     fetch_service: FetchService,
     link: ComponentLink<Forum>,
@@ -30,6 +31,7 @@ impl Component for Forum {
         Forum {
             updating: false,
             threads: None,
+            current_thread: None,
 
             fetch_service: FetchService::new(),
             link,
@@ -70,9 +72,21 @@ impl Component for Forum {
 impl Renderable<Forum> for Forum {
     fn view(&self) -> Html<Self> {
         html! {
-            <div class="container">
-                <h5>{ "Thread list" }</h5>
-                { self.render_threads() }
+            <div class="forum-view">
+                <div class="row">
+                    <div class="thread-list">
+                        <div class="thread-list-header">
+                            <h5>{ "Thread list" }</h5>
+                            <button class="btn btn-primary">{"Create thread"}</button>
+                        </div>
+                        <div class="thread-list-content">
+                            { self.render_threads() }
+                        </div>
+                    </div>
+                    <div class="thread-view">
+                        { self.render_current_thread() }
+                    </div>
+                </div>
             </div>
         }
     }
@@ -80,7 +94,7 @@ impl Renderable<Forum> for Forum {
 
 fn render_thread(thread: &Thread) -> Html<Forum> {
     html! {
-        <li>{format!("Name: {}", thread.name)}</li>
+        <li>{format!("Name: {}", thread.title)}</li>
     }
 }
 
@@ -94,7 +108,21 @@ impl Forum {
             }
         } else {
             html! {
-                <p> { "No threads." } </p>
+                <p class="p-3"> { "No threads available. How about creating one?" } </p>
+            }
+        }
+    }
+
+    fn render_current_thread(&self) -> Html<Self> {
+        if let Some(thread) = &self.current_thread {
+            html! {
+                "Foo"
+            }
+        } else {
+            html! {
+                <div class="no-thread-selected">
+                    <p> { "Choose a thread to get started!" } </p>
+                </div>
             }
         }
     }

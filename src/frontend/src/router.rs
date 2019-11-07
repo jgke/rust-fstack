@@ -68,16 +68,11 @@ impl Component for Model {
 impl Renderable<Model> for Model {
     fn view(&self) -> VNode<Self> {
         html! {
-            <div>
-            {
-                info!("{:?}", &self.route);
-                match AppRoute::switch(self.route.clone()) {
-                    Some(AppRoute::Login) => html!{<Login onlogin=|_| Msg::ChangeRoute(AppRoute::Forum)/>},
-                    Some(AppRoute::Forum) => html!{<Forum />},
-                    None => html!{"404"}
-                }
+            match AppRoute::switch(self.route.clone()) {
+                Some(AppRoute::Login) => html!{<Login onlogin=|_| Msg::ChangeRoute(AppRoute::Forum)/>},
+                Some(AppRoute::Forum) => html!{<Forum />},
+                None => html!{"404"}
             }
-            </div>
         }
     }
 }

@@ -1,6 +1,7 @@
 use postgres::GenericConnection;
 use r2d2_postgres::{TlsMode, PostgresConnectionManager};
 use std::sync::Arc;
+use std::collections::HashSet;
 
 #[derive(Clone, Debug)]
 pub struct DBConnectionInstance {
@@ -50,11 +51,45 @@ impl Transaction<'_> {
     }
 }
 
-pub fn get_db_connection() -> Result<DBConnectionInstance, postgres::Error> {
+const MIGRATIONS: &[(&str, &str)] = &[
+    ("initial", include_str!("../migrations/initial.sql"))
+];
+
+pub fn run_migrations(connection: r2d2::PooledConnection<r2d2_postgres::PostgresConnectionManager>) -> Result<(), postgres::Error> {
+    let tx = connection.transaction()?;
+
+    tx.query("CREATE TABLE IF NOT EXISTS _migration (name TEXT UNIQUE)", &[])?;
+    let applied_migrations: HashSet<String> = tx.query("SELECT name FROM _migration", &[])?
+        .into_iter()
+        .map(|row| row.get(0))
+        .collect();
+
+    let migrations: Vec<_> = MIGRATIONS
+        .iter()
+        .filter(|m| !applied_migrations.contains(m.0))
+        .collect();
+
+    dbg!(&applied_migrations, &migrations);
+
+    for migration in migrations {
+        println!("Applying migration {}", migration.0);
+        tx.query("INSERT INTO _migration (name) VALUES ($1)", &[&migration.0])?;
+        tx.batch_execute(migration.1)?;
+    }
+
+    tx.commit()?;
+
+    Ok(())
+}
+
+pub fn get_db_connection() -> Result<DBConnectionInstance, Box<dyn std::error::Error>> {
     let manager = PostgresConnectionManager::new(
         "postgres://postgres:password@localhost:6314/postgres",
         TlsMode::None).unwrap();
     let pool = r2d2::Pool::new(manager).unwrap();
+
+    run_migrations(pool.get()?).unwrap();
+
     Ok(DBConnectionInstance::new(pool))
 }
 

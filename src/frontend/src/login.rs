@@ -5,7 +5,6 @@ use yew::services::fetch::{FetchService, FetchTask, Request, Response};
 use yew_router::prelude::RouterButton;
 use stdweb::traits::IEvent;
 use stdweb::web::window;
-use types::Person;
 
 pub struct Login {
     email: String,
@@ -21,7 +20,8 @@ pub struct Login {
 pub enum Msg {
     UpdateEmail(String),
     UpdatePassword(String),
-    Login
+    Login,
+    CreateAccount,
 }
 
 #[derive(PartialEq, Properties)]
@@ -56,6 +56,10 @@ impl Component for Login {
                 self.onlogin.emit(());
                 return true;
             }
+            Msg::CreateAccount => {
+                self.onlogin.emit(());
+                return true;
+            }
         }
         true
     }
@@ -65,25 +69,30 @@ impl Renderable<Login> for Login {
     fn view(&self) -> Html<Self> {
         html! {
             <div class="login-form-container">
-                <div class="login-form-header">
-                    <h5>{ "Log in" }</h5>
-                </div>
-                <div class="login-form">
-                    <form>
-                        <div class="form-group">
-                            <label for="inputEmail">{ "Email address" }</label>
-                            <input type="email" id="inputEmail" class="form-control" placeholder="Email address" required="" autofocus=""
-                            value=&self.email oninput=|e| Msg::UpdateEmail(e.value) />
-                        </div>
+                <div class="login-form-content">
+                    <div class="login-form-header">
+                        <h5>{ "Log in" }</h5>
+                    </div>
+                    <div class="login-form">
+                        <form>
+                            <div class="form-group">
+                                <label for="inputEmail">{ "Email address" }</label>
+                                <input type="email" id="inputEmail" class="form-control" placeholder="Email address" required="" autofocus=""
+                                value=&self.email oninput=|e| Msg::UpdateEmail(e.value) />
+                            </div>
 
-                        <div class="form-group">
-                            <label for="inputPassword">{ "Password" }</label>
-                            <input type="password" id="inputPassword" class="form-control" placeholder="Password" required=""
-                            value=&self.password  oninput=|e| Msg::UpdatePassword(e.value) />
-                        </div>
+                            <div class="form-group">
+                                <label for="inputPassword">{ "Password" }</label>
+                                <input type="password" id="inputPassword" class="form-control" placeholder="Password" required=""
+                                value=&self.password  oninput=|e| Msg::UpdatePassword(e.value) />
+                            </div>
 
-                        <button type="submit" class="btn btn-primary" onclick=|e| { e.prevent_default(); Msg::Login }>{ "Log in "}</button>
-                    </form>
+                            <div class="login-buttons">
+                                <button type="submit" class="btn btn-primary" onclick=|e| { e.prevent_default(); Msg::Login }>{ "Log in "}</button>
+                                <button type="submit" class="btn btn-link" onclick=|e| { e.prevent_default(); Msg::CreateAccount }>{ "Create account"}</button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
         }
