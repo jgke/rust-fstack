@@ -26,7 +26,7 @@ pub enum Msg {
     CreateThread,
     UpdateCreateTitle(String),
 
-    ChooseThread(u32),
+    ChooseThread(i32),
 
     FetchReady(Result<Vec<Thread>, Error>),
 }
@@ -70,6 +70,7 @@ impl Component for Forum {
                 self.create_thread_title = s;
             }
             Msg::ChooseThread(id) => {
+                self.ft = Some(self.choose_thread(id));
             }
             Msg::FetchReady(threads) => {
                 self.updating = false;
@@ -106,19 +107,13 @@ impl Renderable<Forum> for Forum {
     }
 }
 
-fn render_thread(thread: &Thread) -> Html<Forum> {
-    html! {
-        <li class="list-group-item">{ &thread.title }</li>
-    }
-}
-
 impl Forum {
     fn render_threads(&self) -> Html<Self> {
         if let Some(threads) = &self.threads {
             html! {
-                <ul class="list-group">
-                    { for threads.iter().map(render_thread) }
-                </ul>
+                <div class="list-group">
+                    { for threads.iter().map(|t| self.render_thread(t)) }
+                </div>
             }
         } else {
             html! {
@@ -156,6 +151,21 @@ impl Forum {
         self.fetch_service.fetch(request, callback)
     }
 
+    fn choose_thread(&mut self, id: i32) -> FetchTask {
+        let callback = self.link.send_back(
+            move |response: Response<Json<Result<Vec<Thread>, Error>>>| {
+                let (meta, Json(data)) = response.into_parts();
+                if meta.status.is_success() {
+                    Msg::FetchReady(data)
+                } else {
+                    Msg::FetchError
+                }
+            },
+        );
+        let request = Request::get(format!("http://localhost:80/thread/{}", id)).body(Nothing).unwrap();
+        self.fetch_service.fetch(request, callback)
+    }
+
     fn create_thread(&mut self) -> FetchTask {
         let callback = self.link.send_back(
             move |response: Response<Json<Result<Thread, Error>>>| {
@@ -190,6 +200,15 @@ impl Forum {
             }
         } else {
             html!{}
+        }
+    }
+
+    fn render_thread(&self, thread: &Thread) -> Html<Forum> {
+        let id = thread.id;
+        if Some(id) == self.current_thread.as_ref().map(|t| t.id) {
+            html! { <button class="list-group-item list-group-item-action active disabled">{ &thread.title }</button> }
+        } else {
+            html! { <button class="list-group-item list-group-item-action" onclick=|_| Msg::ChooseThread(id)>{ &thread.title }</button> }
         }
     }
 }

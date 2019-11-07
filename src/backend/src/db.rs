@@ -1,5 +1,5 @@
 use postgres::GenericConnection;
-use types::{Account, Thread};
+use types::{Account, Thread, Message};
 
 pub use crate::db_traits::{DBConnectionInstance, Connection, Transaction};
 use crate::db_traits::{IntoGenericConnection, get_db_connection};
@@ -39,4 +39,26 @@ pub fn get_threads<T: IntoGenericConnection>(db: T) -> Vec<Thread> {
             messages: None,
         })
         .collect()
+}
+
+pub fn get_thread<T: IntoGenericConnection>(db: T, id: i32) -> Option<Thread> {
+    let conn = db.into_generic_connection();
+    let result = conn.query("SELECT t.id, t.creator, title, m.id, m.creator, m.content FROM thread t LEFT JOIN message m ON m.thread_id = t.id WHERE t.id=$1", &[&id])
+        .unwrap();
+
+    let thread_row = result.iter().next()?;
+
+    Some(Thread {
+        id: thread_row.get(0), creator: thread_row.get(1),
+        title: thread_row.get(2),
+        messages: Some(result
+                       .into_iter()
+                       .filter(|row| row.get::<usize, Option<i32>>(3).is_some())
+                       .map(|row| Message {
+                           id: row.get(3),
+                           creator: row.get(4),
+                           content: row.get(5),
+                       })
+                       .collect())
+    })
 }

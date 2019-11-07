@@ -17,7 +17,6 @@ pub struct Thread {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Message {
     pub id: i32,
-    pub thread_id: i32,
     pub creator: i32,
     pub content: String,
 }

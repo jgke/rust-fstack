@@ -55,6 +55,7 @@ body {
 .thread-list {
     @extend .col-1;
     @extend .p-0;
+    @extend .border-left;
     @extend .border-right;
     min-width: 300px;
     height: 100%;

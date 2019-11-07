@@ -28,6 +28,11 @@ struct CreateThread {
     title: String,
 }
 
+#[derive(Deserialize, StateData, StaticResponseExtender)]
+struct ThreadId {
+    id: i32,
+}
+
 pub fn new_account(mut state: State, connection: db::Connection) -> Box<HandlerFuture> {
     let f = extract_json::<NewAccount>(&mut state)
         .map(move |account| {
@@ -46,6 +51,14 @@ pub fn new_account(mut state: State, connection: db::Connection) -> Box<HandlerF
 
 pub fn get_threads(state: State, connection: db::Connection) -> (State, String) {
     (state, serde_json::to_string(&db::get_threads(connection)).unwrap())
+}
+
+pub fn get_thread(state: State, connection: db::Connection) -> (State, String) {
+    let thread = {
+        let id = ThreadId::borrow_from(&state).id;
+        db::get_thread(connection, id)
+    };
+    (state, serde_json::to_string(&thread).unwrap())
 }
 
 pub fn create_thread(mut state: State, connection: db::Connection) -> Box<HandlerFuture> {
@@ -73,6 +86,9 @@ pub fn router(state: S) -> Router {
     build_router(chain, pipelines, |route| {
         route.post("/account").to_new_handler(r(new_account));
         route.get("/thread").to_new_handler(r(get_threads));
+        route.get("/thread/:id")
+            .with_path_extractor::<ThreadId>()
+            .to_new_handler(r(get_thread));
         route.post("/thread").to_new_handler(r(create_thread));
     })
 }
