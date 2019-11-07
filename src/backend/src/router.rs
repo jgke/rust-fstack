@@ -23,10 +23,35 @@ struct NewAccount {
     password: String,
 }
 
+#[derive(Deserialize, StateData, StaticResponseExtender)]
+struct CreateThread {
+    title: String,
+}
+
 pub fn new_account(mut state: State, connection: db::Connection) -> Box<HandlerFuture> {
     let f = extract_json::<NewAccount>(&mut state)
         .map(move |account| {
             db::create_account(connection, &account.username, &account.password);
+        })
+        .map_err(|e| e.into_handler_error().with_status(StatusCode::BAD_REQUEST))
+        .then(|result| match result {
+            Ok(_) => {
+                let res = create_response(&state, StatusCode::CREATED, mime::APPLICATION_JSON, Body::empty());
+                Ok((state, res))
+            },
+            Err(r) => Err((state, r)),
+        });
+    Box::new(f)
+}
+
+pub fn get_threads(state: State, connection: db::Connection) -> (State, String) {
+    (state, serde_json::to_string(&db::get_threads(connection)).unwrap())
+}
+
+pub fn create_thread(mut state: State, connection: db::Connection) -> Box<HandlerFuture> {
+    let f = extract_json::<CreateThread>(&mut state)
+        .map(move |thread| {
+            db::create_thread(connection, &thread.title);
         })
         .map_err(|e| e.into_handler_error().with_status(StatusCode::BAD_REQUEST))
         .then(|result| match result {
@@ -47,6 +72,8 @@ pub fn router(state: S) -> Router {
     // build a router with the chain & pipeline
     build_router(chain, pipelines, |route| {
         route.post("/account").to_new_handler(r(new_account));
+        route.get("/thread").to_new_handler(r(get_threads));
+        route.post("/thread").to_new_handler(r(create_thread));
     })
 }
 

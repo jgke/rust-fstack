@@ -45,6 +45,13 @@ body {
     }
 }
 
+.create-thread {
+    @extend .mt-3;
+    @extend .mb-3;
+    @extend .pl-3;
+    @extend .pr-3;
+}
+
 .thread-list {
     @extend .col-1;
     @extend .p-0;
@@ -56,7 +63,6 @@ body {
 
 .thread-list-header {
     @extend .p-3;
-    @extend .mb-3;
     @extend .border-bottom;
     background-color: $light;
     display: flex;

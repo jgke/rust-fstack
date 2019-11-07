@@ -1,7 +1,6 @@
 use failure::Error;
 use yew::prelude::*;
-use yew::format::{Nothing, Json};
-use yew::services::fetch::{FetchService, FetchTask, Request, Response};
+use yew::services::fetch::{FetchService, FetchTask};
 use yew_router::prelude::RouterButton;
 use stdweb::traits::IEvent;
 use stdweb::web::window;
