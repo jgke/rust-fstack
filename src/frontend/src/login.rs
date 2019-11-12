@@ -1,15 +1,17 @@
 use failure::Error;
 use yew::prelude::*;
-use yew::services::fetch::{FetchService, FetchTask};
-use yew_router::prelude::RouterButton;
+use yew::format::Json;
+use yew::services::fetch::{FetchService, FetchTask, Request, Response};
 use stdweb::traits::IEvent;
-use stdweb::web::window;
+
+use types::{CreateAccount, Token};
 
 pub struct Login {
     email: String,
     password: String,
+    error: Option<LoginError>,
 
-    onlogin: Callback<()>,
+    onlogin: Callback<String>,
 
     fetch_service: FetchService,
     link: ComponentLink<Login>,
@@ -21,12 +23,19 @@ pub enum Msg {
     UpdatePassword(String),
     Login,
     CreateAccount,
+    FetchError(LoginError),
+    LoginSuccess(String),
 }
 
 #[derive(PartialEq, Properties)]
 pub struct Props {
     #[props(required)]
-    pub onlogin: Callback<()>,
+    pub onlogin: Callback<String>,
+}
+
+pub enum LoginError {
+    Login,
+    CreateAccount,
 }
 
 
@@ -38,6 +47,7 @@ impl Component for Login {
         Login {
             email: "".to_string(),
             password: "".to_string(),
+            error: None,
 
             onlogin: props.onlogin,
 
@@ -52,12 +62,20 @@ impl Component for Login {
             Msg::UpdateEmail(email) => self.email = email,
             Msg::UpdatePassword(pw) => self.password = pw,
             Msg::Login => {
-                self.onlogin.emit(());
+                self.error = None;
+                self.ft = Some(self.login());
                 return true;
             }
             Msg::CreateAccount => {
-                self.onlogin.emit(());
+                self.error = None;
+                self.ft = Some(self.create_account());
                 return true;
+            }
+            Msg::LoginSuccess(token) => {
+                self.onlogin.emit(token);
+            }
+            Msg::FetchError(error) => {
+                self.error = Some(error);
             }
         }
         true
@@ -90,10 +108,80 @@ impl Renderable<Login> for Login {
                                 <button type="submit" class="btn btn-primary" onclick=|e| { e.prevent_default(); Msg::Login }>{ "Log in "}</button>
                                 <button type="submit" class="btn btn-link" onclick=|e| { e.prevent_default(); Msg::CreateAccount }>{ "Create account"}</button>
                             </div>
+
+                            { self.login_error() }
                         </form>
                     </div>
                 </div>
             </div>
+        }
+    }
+}
+
+impl Login {
+    fn create_account(&mut self) -> FetchTask {
+        let callback = self.link.send_back(
+            move |response: Response<Json<Result<Token, Error>>>| {
+                let (meta, Json(data)) = response.into_parts();
+                if meta.status.is_success() {
+                    if let Ok(token) = data {
+                        Msg::LoginSuccess(token.token)
+                    } else {
+                        Msg::FetchError(LoginError::CreateAccount)
+                    }
+                } else {
+                    Msg::FetchError(LoginError::CreateAccount)
+                }
+            },
+        );
+
+        let username = self.email.to_string();
+        let password = self.password.to_string();
+
+        let body = CreateAccount { username, password };
+
+        let request = Request::post("http://localhost:80/account")
+            .body(Ok(serde_json::to_string(&body).unwrap()))
+            .unwrap();
+        self.fetch_service.fetch(request, callback)
+    }
+
+    fn login(&mut self) -> FetchTask {
+        let callback = self.link.send_back(
+            move |response: Response<Json<Result<Token, Error>>>| {
+                let (meta, Json(data)) = response.into_parts();
+                if meta.status.is_success() {
+                    if let Ok(token) = data {
+                        Msg::LoginSuccess(token.token)
+                    } else {
+                        Msg::FetchError(LoginError::Login)
+                    }
+                } else {
+                    Msg::FetchError(LoginError::Login)
+                }
+            },
+        );
+
+        let username = self.email.to_string();
+        let password = self.password.to_string();
+
+        let body = types::Login { username, password };
+
+        let request = Request::post("http://localhost:80/login")
+            .body(Ok(serde_json::to_string(&body).unwrap()))
+            .unwrap();
+        self.fetch_service.fetch(request, callback)
+    }
+
+    fn login_error(&self) -> Html<Self> {
+        match self.error {
+            Some(LoginError::Login) => html! {
+                <div class="login-error">{ "Login failed, check username and password" }</div>
+            },
+            Some(LoginError::CreateAccount) => html! {
+                <div class="login-error">{ "Account creation failed" }</div>
+            },
+            None => html! {}
         }
     }
 }

@@ -7,8 +7,9 @@ use gotham::pipeline::new_pipeline;
 use gotham::router::builder::*;
 use gotham::router::Router;
 use gotham::state::{State, FromState};
-use hyper::{Body, StatusCode};
+use hyper::{Body, StatusCode, HeaderMap, header::HeaderValue};
 use serde::Deserialize;
+use std::convert::TryInto;
 use types::*;
 
 use crate::auth;
@@ -29,9 +30,9 @@ struct AccountId {
     id: i32,
 }
 
-fn get_auth_body(id: i32) -> serde_json::Value {
+fn get_token(id: i32) -> Token {
     let token = auth::encrypt(json!({"sub": id})).unwrap();
-    json!({"token": token})
+    Token { token }
 }
 
 pub fn new_account(mut state: State, connection: db::Connection) -> Box<HandlerFuture> {
@@ -40,7 +41,7 @@ pub fn new_account(mut state: State, connection: db::Connection) -> Box<HandlerF
                |res| {
                    match res {
                        Some(id) => {
-                           let body = get_auth_body(id);
+                           let body = serde_json::to_string(&get_token(id)).unwrap();
                            create_response(&state, StatusCode::CREATED, mime::APPLICATION_JSON, body.to_string())
                        }
                        None => create_response(&state, StatusCode::CONFLICT, mime::APPLICATION_JSON, Body::empty()),
@@ -57,7 +58,7 @@ pub fn login(mut state: State, connection: db::Connection) -> Box<HandlerFuture>
                |account_id| {
                    match account_id {
                        Some(id) => {
-                           let body = get_auth_body(id);
+                           let body = serde_json::to_string(&get_token(id)).unwrap();
                            create_response(&state, StatusCode::OK, mime::APPLICATION_JSON, body.to_string())
                        }
                        None => create_response(&state, StatusCode::BAD_REQUEST, mime::APPLICATION_JSON, Body::empty())
@@ -86,18 +87,45 @@ pub fn get_thread(state: State, connection: db::Connection) -> (State, String) {
 }
 
 pub fn create_thread(mut state: State, connection: db::Connection) -> Box<HandlerFuture> {
-    with_json!(CreateThread, state,
-               |thread: CreateThread| db::create_thread(connection, &thread.title),
-               |_| create_response(&state, StatusCode::CREATED, mime::APPLICATION_JSON, Body::empty()))
+    let headers = HeaderMap::borrow_from(&state);
+    let id = headers.get("token")
+        .and_then(|h| h.to_str().ok())
+        .and_then(|t| auth::decrypt(t).ok())
+        .and_then(|t| t.1["sub"].as_i64())
+        .and_then(|id| id.try_into().ok());
+
+    if let Some(id) = id {
+        with_json!(CreateThread, state,
+                   move |thread: CreateThread| db::create_thread(connection, id, &thread.title),
+                   |_| create_response(&state, StatusCode::CREATED, mime::APPLICATION_JSON, Body::empty()))
+    } else {
+        Box::new(futures::lazy(|| {
+            let resp = create_response(&state, StatusCode::UNAUTHORIZED, mime::APPLICATION_JSON, Body::empty());
+            Ok((state, resp))
+        }))
+    }
 }
 
 
 pub fn create_message(mut state: State, connection: db::Connection) -> Box<HandlerFuture> {
     let thread_id = ThreadId::borrow_from(&state).id;
+    let headers = HeaderMap::borrow_from(&state);
+    let id = headers.get("token")
+        .and_then(|h| h.to_str().ok())
+        .and_then(|t| auth::decrypt(t).ok())
+        .and_then(|t| t.1["sub"].as_i64())
+        .and_then(|id| id.try_into().ok());
 
-    with_json!(CreateMessage, state,
-               move |msg| db::create_message(connection, thread_id, &msg.content),
-               |_| create_response(&state, StatusCode::CREATED, mime::APPLICATION_JSON, Body::empty()))
+    if let Some(id) = id {
+        with_json!(CreateMessage, state,
+                   move |msg| db::create_message(connection, id, thread_id, &msg.content),
+                   |_| create_response(&state, StatusCode::CREATED, mime::APPLICATION_JSON, Body::empty()))
+    } else {
+        Box::new(futures::lazy(|| {
+            let resp = create_response(&state, StatusCode::UNAUTHORIZED, mime::APPLICATION_JSON, Body::empty());
+            Ok((state, resp))
+        }))
+    }
 }
 
 pub fn router(state: S) -> Router {

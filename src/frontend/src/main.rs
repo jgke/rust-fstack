@@ -1,4 +1,4 @@
-#![recursion_limit="256"]
+#![recursion_limit="1024"]
 
 #[cfg_attr(test, macro_use)]
 extern crate stdweb;

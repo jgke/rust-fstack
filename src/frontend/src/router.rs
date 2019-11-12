@@ -17,11 +17,15 @@ pub enum AppRoute {
 pub struct Model {
     route_service: RouteService<()>,
     route: Route<()>,
+    token: Option<String>,
+
+    link: ComponentLink<Self>
 }
 
 pub enum Msg {
     RouteChanged(Route<()>),
     ChangeRoute(AppRoute),
+    Login(String),
 }
 
 impl Component for Model {
@@ -42,12 +46,18 @@ impl Component for Model {
         Model {
             route_service,
             route,
+            link,
+            token: None,
         }
     }
 
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
             Msg::RouteChanged(route) => self.route = route,
+            Msg::Login(token) => {
+                self.token = Some(token);
+                self.link.send_self(Msg::ChangeRoute(AppRoute::Forum));
+            }
             Msg::ChangeRoute(route) => {
                 // This might be derived in the future
                 let route_string = match route {
@@ -68,10 +78,16 @@ impl Component for Model {
 impl Renderable<Model> for Model {
     fn view(&self) -> VNode<Self> {
         html! {
-            match AppRoute::switch(self.route.clone()) {
-                Some(AppRoute::Login) => html!{<Login onlogin=|_| Msg::ChangeRoute(AppRoute::Forum)/>},
-                Some(AppRoute::Forum) => html!{<Forum />},
-                None => html!{"404"}
+            match (AppRoute::switch(self.route.clone()), &self.token) {
+                (Some(AppRoute::Login), _) | (_, None) => html!{<Login onlogin=|token| Msg::Login(token)/>},
+                (Some(AppRoute::Forum), Some(token)) => {
+                    if let Some(token) = &self.token {
+                        html!{<Forum token=token.to_string()/>}
+                    } else {
+                        unreachable!()
+                    }
+                }
+                (None, _) => html!{"404"}
             }
         }
     }

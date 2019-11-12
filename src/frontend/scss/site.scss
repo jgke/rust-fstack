@@ -37,6 +37,11 @@ body {
     justify-content: space-between;
 }
 
+.login-error {
+    @extend .alert;
+    @extend .alert-danger;
+}
+
 .forum-view {
     @extend .container-fluid;
     height: 100%;

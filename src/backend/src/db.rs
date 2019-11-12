@@ -33,9 +33,9 @@ pub fn get_account<T: IntoGenericConnection>(db: T, id: i32) -> Option<Account> 
         .next()
 }
 
-pub fn create_thread<T: IntoGenericConnection>(db: T, title: &str) {
+pub fn create_thread<T: IntoGenericConnection>(db: T, account_id: i32, title: &str) {
     let conn = db.into_generic_connection();
-    conn.query("INSERT INTO thread (title, creator) VALUES ($1, $2)", &[&title, &1]).unwrap();
+    conn.query("INSERT INTO thread (title, creator) VALUES ($1, $2)", &[&title, &account_id]).unwrap();
 }
 
 pub fn get_threads<T: IntoGenericConnection>(db: T) -> Vec<Thread> {
@@ -74,7 +74,7 @@ pub fn get_thread<T: IntoGenericConnection>(db: T, id: i32) -> Option<Thread> {
     })
 }
 
-pub fn create_message<T: IntoGenericConnection>(db: T, thread_id: i32, message: &str) {
+pub fn create_message<T: IntoGenericConnection>(db: T, account_id: i32, thread_id: i32, message: &str) {
     let conn = db.into_generic_connection();
-    conn.query("INSERT INTO message (thread_id, content, creator) VALUES ($1, $2, $3)", &[&thread_id, &message, &3]).unwrap();
+    conn.query("INSERT INTO message (thread_id, content, creator) VALUES ($1, $2, $3)", &[&thread_id, &message, &account_id]).unwrap();
 }

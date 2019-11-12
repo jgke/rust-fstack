@@ -41,6 +41,12 @@ pub struct Login {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[cfg_attr(not(cargo_web), derive(StateData, StaticResponseExtender))]
+pub struct Token {
+    pub token: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(not(cargo_web), derive(StateData, StaticResponseExtender))]
 pub struct CreateThread {
     pub title: String,
 }

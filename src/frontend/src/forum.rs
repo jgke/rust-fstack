@@ -2,9 +2,7 @@ use failure::Error;
 use yew::prelude::*;
 use yew::format::{Nothing, Json};
 use yew::services::fetch::{FetchService, FetchTask, Request, Response};
-use stdweb::traits::IEvent;
 use types::{CreateMessage, CreateThread, Message, Thread};
-use serde_json::json;
 
 pub struct Forum {
     updating: bool,
@@ -13,6 +11,8 @@ pub struct Forum {
     show_create_thread: bool,
     create_thread_field: String,
     create_message_field: String,
+
+    token: String,
 
     fetch_service: FetchService,
     link: ComponentLink<Forum>,
@@ -36,9 +36,15 @@ pub enum Msg {
     CreateMessage(i32),
 }
 
+#[derive(PartialEq, Properties)]
+pub struct Props {
+    #[props(required)]
+    pub token: String,
+}
+
 impl Component for Forum {
     type Message = Msg;
-    type Properties = ();
+    type Properties = Props;
 
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
         let mut this = Forum {
@@ -48,6 +54,8 @@ impl Component for Forum {
             show_create_thread: false,
             create_thread_field: "".to_string(),
             create_message_field: "".to_string(),
+
+            token: props.token,
 
             fetch_service: FetchService::new(),
             link,
@@ -182,7 +190,8 @@ impl Forum {
                 <form>
                     <div class="form-group">
                         <label for="inputMessage">{ "Message" }</label>
-                        <input id="inputMessage" class="form-control" placeholder="Create new message" autofocus=""
+                        <input id="inputMessage" class="form-control" placeholder="Create new message"
+                        autofocus="" autocomplete="off"
                         value=&self.create_message_field oninput=|e| Msg::UpdateMessageField(e.value) />
                     </div>
 
@@ -227,7 +236,7 @@ impl Forum {
     fn create_thread(&mut self) -> FetchTask {
         let callback = self.link.send_back(
             move |response: Response<Json<Result<Thread, Error>>>| {
-                let (meta, Json(data)) = response.into_parts();
+                let (meta, Json(_)) = response.into_parts();
                 if meta.status.is_success() {
                     Msg::FetchThreads
                 } else {
@@ -238,6 +247,7 @@ impl Forum {
         let body = CreateThread { title: self.create_thread_field.to_string() };
 
         let request = Request::post("http://localhost:80/thread")
+            .header("token", &self.token)
             .body(Ok(serde_json::to_string(&body).unwrap()))
             .unwrap();
         self.fetch_service.fetch(request, callback)
@@ -246,7 +256,7 @@ impl Forum {
     fn create_message(&mut self, thread_id: i32) -> FetchTask {
         let callback = self.link.send_back(
             move |response: Response<Json<Result<(), Error>>>| {
-                let (meta, Json(data)) = response.into_parts();
+                let (meta, Json(_)) = response.into_parts();
                 if meta.status.is_success() {
                     Msg::ChooseThread(thread_id)
                 } else {
@@ -256,6 +266,7 @@ impl Forum {
         );
         let body = CreateMessage { content: self.create_message_field.to_string() };
         let request = Request::post(format!("http://localhost:80/thread/{}", thread_id))
+            .header("token", &self.token)
             .body(Ok(serde_json::to_string(&body).unwrap()))
             .unwrap();
         self.create_message_field = "".to_string();
@@ -268,7 +279,8 @@ impl Forum {
                 <form class="create-thread">
                     <div class="form-group">
                         <label for="inputTitle">{ "Title" }</label>
-                        <input id="inputTitle" class="form-control" placeholder="Thread title" required="" autofocus=""
+                        <input id="inputTitle" class="form-control" placeholder="Thread title" required=""
+                        autofocus="" autocomplete="off"
                         value=&self.create_thread_field oninput=|e| Msg::UpdateCreateTitle(e.value) />
                     </div>
 
