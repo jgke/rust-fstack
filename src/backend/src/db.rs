@@ -18,7 +18,7 @@ pub fn create_account<T: IntoGenericConnection>(db: T, username: &str, password:
 
 pub fn login<T: IntoGenericConnection>(db: T, username: &str, password: &str) -> Option<i32> {
     let conn = db.into_generic_connection();
-    dbg!(conn.query("SELECT id FROM account WHERE username=$1 AND password=$2", &[&username, &password]).unwrap())
+    conn.query("SELECT id FROM account WHERE username=$1 AND password=$2", &[&username, &password]).unwrap()
         .into_iter()
         .next()?
         .get(0)
@@ -40,7 +40,7 @@ pub fn create_thread<T: IntoGenericConnection>(db: T, account_id: i32, title: &s
 
 pub fn get_threads<T: IntoGenericConnection>(db: T) -> Vec<Thread> {
     let conn = db.into_generic_connection();
-    conn.query("SELECT id, creator, title FROM thread", &[])
+    conn.query("SELECT t.id, a.username, t.title FROM thread t LEFT JOIN account a ON t.creator = a.id", &[])
         .unwrap()
         .into_iter()
         .map(|row| Thread {
@@ -48,13 +48,20 @@ pub fn get_threads<T: IntoGenericConnection>(db: T) -> Vec<Thread> {
             creator: row.get(1),
             title: row.get(2),
             messages: None,
+            latest_message: None,
         })
         .collect()
 }
 
 pub fn get_thread<T: IntoGenericConnection>(db: T, id: i32) -> Option<Thread> {
     let conn = db.into_generic_connection();
-    let result = conn.query("SELECT t.id, t.creator, title, m.id, m.creator, m.content FROM thread t LEFT JOIN message m ON m.thread_id = t.id WHERE t.id=$1", &[&id])
+    let result = conn.query(
+        "SELECT t.id, a1.username, title, m.id, a2.username, m.content \
+         FROM thread t \
+         LEFT JOIN message m ON m.thread_id = t.id \
+         LEFT JOIN account a1 ON t.creator = a1.id \
+         LEFT JOIN account a2 ON m.creator = a2.id \
+         WHERE t.id=$1", &[&id])
         .unwrap();
 
     let thread_row = result.iter().next()?;
@@ -62,6 +69,7 @@ pub fn get_thread<T: IntoGenericConnection>(db: T, id: i32) -> Option<Thread> {
     Some(Thread {
         id: thread_row.get(0), creator: thread_row.get(1),
         title: thread_row.get(2),
+        latest_message: None,
         messages: Some(result
                        .into_iter()
                        .filter(|row| row.get::<usize, Option<i32>>(3).is_some())
@@ -70,7 +78,7 @@ pub fn get_thread<T: IntoGenericConnection>(db: T, id: i32) -> Option<Thread> {
                            creator: row.get(4),
                            content: row.get(5),
                        })
-                       .collect())
+                       .collect()),
     })
 }
 

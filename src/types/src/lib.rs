@@ -13,15 +13,16 @@ pub struct Account {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Thread {
     pub id: i32,
-    pub creator: i32,
+    pub creator: String,
     pub title: String,
-    pub messages: Option<Vec<Message>>
+    pub messages: Option<Vec<Message>>,
+    pub latest_message: Option<Message>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Message {
     pub id: i32,
-    pub creator: i32,
+    pub creator: String,
     pub content: String,
 }
 

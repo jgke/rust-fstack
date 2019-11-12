@@ -175,7 +175,7 @@ impl Forum {
                 <ul class="list-group">
                 { for messages.iter().map(
                         |msg| html! {
-                            <li class="list-group-item">{ &msg.content }</li>
+                            <li class="list-group-item">{ format!("{} | {}", &msg.creator, &msg.content) }</li>
                         })
                 }
                 </ul>
@@ -295,9 +295,17 @@ impl Forum {
     fn render_thread(&self, thread: &Thread) -> Html<Forum> {
         let id = thread.id;
         if Some(id) == self.current_thread.as_ref().map(|t| t.id) {
-            html! { <button class="list-group-item list-group-item-action active disabled">{ &thread.title }</button> }
+            html! { <button class="thread-list-item active disabled">
+                <b>{ &thread.title }</b>
+                <br />
+                <small>{ &thread.creator }</small>
+            </button> }
         } else {
-            html! { <button class="list-group-item list-group-item-action" onclick=|_| Msg::ChooseThread(id)>{ &thread.title }</button> }
+            html! { <button class="thread-list-item" onclick=|_| Msg::ChooseThread(id)>
+                <b>{ &thread.title }</b>
+                <br />
+                <small>{ &thread.creator }</small>
+            </button> }
         }
     }
 }

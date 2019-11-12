@@ -77,6 +77,18 @@ body {
     align-items: center;
 }
 
+.thread-list-item {
+    @extend .list-group-item;
+    @extend .list-group-item-action;
+}
+
+.thread-list-item > small {
+    display: block;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
 .thread-list-content {
 }
 
