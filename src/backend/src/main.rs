@@ -1,10 +1,13 @@
-#![feature(proc_macro_hygiene, decl_macro, type_alias_impl_trait)]
+#![feature(proc_macro_hygiene, decl_macro, type_alias_impl_trait, try_trait)]
 
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
 extern crate gotham_derive;
+#[macro_use]
+extern crate serde_json;
 
+mod auth;
 mod db;
 mod db_traits;
 #[macro_use]

@@ -8,9 +8,20 @@ lazy_static! {
     pub(crate) static ref DB_CONNECTION: DBConnectionInstance = get_db_connection().unwrap();
 }
 
-pub fn create_account<T: IntoGenericConnection>(db: T, username: &str, password: &str) {
+pub fn create_account<T: IntoGenericConnection>(db: T, username: &str, password: &str) -> Option<i32> {
     let conn = db.into_generic_connection();
-    conn.query("INSERT INTO account (username, password) VALUES ($1, $2)", &[&username, &password]).unwrap();
+    conn.query("INSERT INTO account (username, password) VALUES ($1, $2) RETURNING id", &[&username, &password]).ok()?
+        .into_iter()
+        .next()
+        .map(|row| row.get(0))
+}
+
+pub fn login<T: IntoGenericConnection>(db: T, username: &str, password: &str) -> Option<i32> {
+    let conn = db.into_generic_connection();
+    dbg!(conn.query("SELECT id FROM account WHERE username=$1 AND password=$2", &[&username, &password]).unwrap())
+        .into_iter()
+        .next()?
+        .get(0)
 }
 
 pub fn get_account<T: IntoGenericConnection>(db: T, id: i32) -> Option<Account> {

@@ -34,6 +34,13 @@ pub struct CreateAccount {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[cfg_attr(not(cargo_web), derive(StateData, StaticResponseExtender))]
+pub struct Login {
+    pub username: String,
+    pub password: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(not(cargo_web), derive(StateData, StaticResponseExtender))]
 pub struct CreateThread {
     pub title: String,
 }

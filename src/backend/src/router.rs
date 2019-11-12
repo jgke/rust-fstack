@@ -11,8 +11,9 @@ use hyper::{Body, StatusCode};
 use serde::Deserialize;
 use types::*;
 
-use crate::handler_utils::{r, extract_json};
+use crate::auth;
 use crate::db;
+use crate::handler_utils::{r, extract_json};
 
 #[derive(Clone, Debug, StateData)]
 pub struct S { }
@@ -28,10 +29,40 @@ struct AccountId {
     id: i32,
 }
 
+fn get_auth_body(id: i32) -> serde_json::Value {
+    let token = auth::encrypt(json!({"sub": id})).unwrap();
+    json!({"token": token})
+}
+
 pub fn new_account(mut state: State, connection: db::Connection) -> Box<HandlerFuture> {
     with_json!(CreateAccount, state,
                |account| db::create_account(connection, &account.username, &account.password),
-               |_| create_response(&state, StatusCode::CREATED, mime::APPLICATION_JSON, Body::empty()))
+               |res| {
+                   match res {
+                       Some(id) => {
+                           let body = get_auth_body(id);
+                           create_response(&state, StatusCode::CREATED, mime::APPLICATION_JSON, body.to_string())
+                       }
+                       None => create_response(&state, StatusCode::CONFLICT, mime::APPLICATION_JSON, Body::empty()),
+                   }
+               })
+}
+
+pub fn login(mut state: State, connection: db::Connection) -> Box<HandlerFuture> {
+    with_json!(Login, state,
+               |account| {
+                   let hashed_password = &account.password;
+                   db::login(connection, &account.username, hashed_password)
+               },
+               |account_id| {
+                   match account_id {
+                       Some(id) => {
+                           let body = get_auth_body(id);
+                           create_response(&state, StatusCode::OK, mime::APPLICATION_JSON, body.to_string())
+                       }
+                       None => create_response(&state, StatusCode::BAD_REQUEST, mime::APPLICATION_JSON, Body::empty())
+                   }
+               })
 }
 
 pub fn get_account(state: State, connection: db::Connection) -> (State, String) {
@@ -76,6 +107,7 @@ pub fn router(state: S) -> Router {
 
     // build a router with the chain & pipeline
     build_router(chain, pipelines, |route| {
+        route.post("/login").to_new_handler(r(login));
         route.post("/account").to_new_handler(r(new_account));
         route.get("/account/:id").to_new_handler(r(get_account));
         route.get("/thread").to_new_handler(r(get_threads));
