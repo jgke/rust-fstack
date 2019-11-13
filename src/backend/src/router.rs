@@ -1,3 +1,4 @@
+use bcrypt::{DEFAULT_COST, hash, verify};
 use futures::Future;
 use gotham::handler::{IntoHandlerError, HandlerFuture};
 use gotham::helpers::http::response::create_response;
@@ -7,7 +8,7 @@ use gotham::pipeline::new_pipeline;
 use gotham::router::builder::*;
 use gotham::router::Router;
 use gotham::state::{State, FromState};
-use hyper::{Body, StatusCode, HeaderMap, header::HeaderValue};
+use hyper::{Body, StatusCode, HeaderMap};
 use serde::Deserialize;
 use std::convert::TryInto;
 use types::*;
@@ -37,7 +38,10 @@ fn get_token(id: i32) -> Token {
 
 pub fn new_account(mut state: State, connection: db::Connection) -> Box<HandlerFuture> {
     with_json!(CreateAccount, state,
-               |account| db::create_account(connection, &account.username, &account.password),
+               |account| {
+                   let hashed = hash(account.password, DEFAULT_COST - 2).unwrap();
+                   db::create_account(connection, &account.username, &hashed)
+               },
                |res| {
                    match res {
                        Some(id) => {
@@ -52,8 +56,17 @@ pub fn new_account(mut state: State, connection: db::Connection) -> Box<HandlerF
 pub fn login(mut state: State, connection: db::Connection) -> Box<HandlerFuture> {
     with_json!(Login, state,
                |account| {
-                   let hashed_password = &account.password;
-                   db::login(connection, &account.username, hashed_password)
+                   connection.transaction(|tx| -> Result<Option<i32>, ()>  {
+                       let (id, password) = db::get_password(&tx, &account.username).ok_or(())?;
+                       let valid = verify(&account.password, &password).map_err(|_| ())?;
+                       db::update_last_logged_in(&tx, &account.username);
+                       tx.commit().map_err(|_| ())?;
+                       if valid {
+                           Ok(Some(id))
+                       } else {
+                           Ok(None)
+                       }
+                   }).ok()?
                },
                |account_id| {
                    match account_id {
@@ -61,7 +74,7 @@ pub fn login(mut state: State, connection: db::Connection) -> Box<HandlerFuture>
                            let body = serde_json::to_string(&get_token(id)).unwrap();
                            create_response(&state, StatusCode::OK, mime::APPLICATION_JSON, body.to_string())
                        }
-                       None => create_response(&state, StatusCode::BAD_REQUEST, mime::APPLICATION_JSON, Body::empty())
+                       None => create_response(&state, StatusCode::NOT_FOUND, mime::APPLICATION_JSON, Body::empty())
                    }
                })
 }

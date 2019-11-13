@@ -278,6 +278,7 @@ impl Forum {
             html! {
                 <form class="create-thread">
                     <div class="form-group">
+                        // Killer feature: comments!
                         <label for="inputTitle">{ "Title" }</label>
                         <input id="inputTitle" class="form-control" placeholder="Thread title" required=""
                         autofocus="" autocomplete="off"

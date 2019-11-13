@@ -5,10 +5,12 @@ authors = ["Jaakko Hannikainen <jaakko.hannikainen@solita.fi>"]
 edition = "2018"
 
 [dependencies]
+bcrypt = "0.6"
+chrono = "0.4.9"
 frank_jwt = "3.1.2"
 gotham = "0.4.0"
 gotham_derive = "0.4.0"
-postgres = "0.15.2"
+postgres = { version = "0.15.2", features = ["with-chrono"]}
 hyper = "0.12.35"
 mime = "0.3"
 serde = { version = "1.0.60", features = ["derive"]}

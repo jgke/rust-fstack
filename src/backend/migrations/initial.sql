@@ -2,7 +2,8 @@ CREATE TABLE account
 (
     id SERIAL NOT NULL PRIMARY KEY,
     username TEXT NOT NULL UNIQUE,
-    password TEXT NOT NULL
+    password TEXT NOT NULL,
+    last_logged_in TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
 CREATE TABLE thread
