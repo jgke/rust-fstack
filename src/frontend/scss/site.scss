@@ -40,6 +40,8 @@ body {
 .login-error {
     @extend .alert;
     @extend .alert-danger;
+    @extend .mt-3;
+    @extend .mb-0;
 }
 
 .forum-view {
