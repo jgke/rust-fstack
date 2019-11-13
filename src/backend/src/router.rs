@@ -1,6 +1,5 @@
 use bcrypt::{DEFAULT_COST, hash, verify};
-use futures::Future;
-use gotham::handler::{IntoHandlerError, HandlerFuture};
+use gotham::handler::HandlerFuture;
 use gotham::helpers::http::response::create_response;
 use gotham::middleware::state::StateMiddleware;
 use gotham::pipeline::single::single_pipeline;
@@ -15,7 +14,7 @@ use types::*;
 
 use crate::auth;
 use crate::db;
-use crate::handler_utils::{r, extract_json};
+use crate::handler_utils::{r, with_json};
 
 #[derive(Clone, Debug, StateData)]
 pub struct S { }
@@ -36,47 +35,30 @@ fn get_token(id: i32) -> Token {
     Token { token }
 }
 
-pub fn new_account(mut state: State, connection: db::Connection) -> Box<HandlerFuture> {
-    with_json!(CreateAccount, state,
-               |account| {
-                   let hashed = hash(account.password, DEFAULT_COST - 2).unwrap();
-                   db::create_account(connection, &account.username, &hashed)
-               },
-               |res| {
-                   match res {
-                       Some(id) => {
-                           let body = serde_json::to_string(&get_token(id)).unwrap();
-                           create_response(&state, StatusCode::CREATED, mime::APPLICATION_JSON, body.to_string())
-                       }
-                       None => create_response(&state, StatusCode::CONFLICT, mime::APPLICATION_JSON, Body::empty()),
-                   }
-               })
+pub fn new_account(state: State, connection: db::Connection) -> Box<HandlerFuture> {
+    with_json(state, |state, account: CreateAccount| {
+        let hashed = hash(account.password, DEFAULT_COST - 2)?;
+        let id = db::create_account(connection, &account.username, &hashed).ok_or(StatusCode::CONFLICT)?;
+        let body = serde_json::to_string(&get_token(id))?;
+        Ok(create_response(&state, StatusCode::CREATED, mime::APPLICATION_JSON, body.to_string()))
+    })
 }
 
-pub fn login(mut state: State, connection: db::Connection) -> Box<HandlerFuture> {
-    with_json!(Login, state,
-               |account| {
-                   connection.transaction(|tx| -> Result<Option<i32>, ()>  {
-                       let (id, password) = db::get_password(&tx, &account.username).ok_or(())?;
-                       let valid = verify(&account.password, &password).map_err(|_| ())?;
-                       db::update_last_logged_in(&tx, &account.username);
-                       tx.commit().map_err(|_| ())?;
-                       if valid {
-                           Ok(Some(id))
-                       } else {
-                           Ok(None)
-                       }
-                   }).ok()?
-               },
-               |account_id| {
-                   match account_id {
-                       Some(id) => {
-                           let body = serde_json::to_string(&get_token(id)).unwrap();
-                           create_response(&state, StatusCode::OK, mime::APPLICATION_JSON, body.to_string())
-                       }
-                       None => create_response(&state, StatusCode::NOT_FOUND, mime::APPLICATION_JSON, Body::empty())
-                   }
-               })
+pub fn login(state: State, connection: db::Connection) -> Box<HandlerFuture> {
+    with_json(state, |state, account: Login| {
+        connection.transaction(|tx| {
+            let (id, password) = db::get_password(&tx, &account.username).ok_or(StatusCode::NOT_FOUND)?;
+            let valid = verify(&account.password, &password)?;
+            db::update_last_logged_in(&tx, &account.username);
+            tx.commit().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            if valid {
+                let body = serde_json::to_string(&get_token(id))?;
+                Ok(create_response(&state, StatusCode::OK, mime::APPLICATION_JSON, body.to_string()))
+            } else {
+                Err(From::from(StatusCode::NOT_FOUND))
+            }
+        })
+    })
 }
 
 pub fn get_account(state: State, connection: db::Connection) -> (State, String) {
@@ -99,46 +81,27 @@ pub fn get_thread(state: State, connection: db::Connection) -> (State, String) {
     (state, serde_json::to_string(&thread).unwrap())
 }
 
-pub fn create_thread(mut state: State, connection: db::Connection) -> Box<HandlerFuture> {
-    let headers = HeaderMap::borrow_from(&state);
-    let id = headers.get("token")
-        .and_then(|h| h.to_str().ok())
-        .and_then(|t| auth::decrypt(t).ok())
-        .and_then(|t| t.1["sub"].as_i64())
-        .and_then(|id| id.try_into().ok());
+pub fn create_thread(state: State, connection: db::Connection) -> Box<HandlerFuture> {
+    with_json(state, |state, thread: CreateThread| {
+        let headers = HeaderMap::borrow_from(&state);
+        let token = headers.get("token")?.to_str()?;
+        let sub: i32 = auth::decrypt(token)?.1["sub"].as_i64()?.try_into()?;
 
-    if let Some(id) = id {
-        with_json!(CreateThread, state,
-                   move |thread: CreateThread| db::create_thread(connection, id, &thread.title),
-                   |_| create_response(&state, StatusCode::CREATED, mime::APPLICATION_JSON, Body::empty()))
-    } else {
-        Box::new(futures::lazy(|| {
-            let resp = create_response(&state, StatusCode::UNAUTHORIZED, mime::APPLICATION_JSON, Body::empty());
-            Ok((state, resp))
-        }))
-    }
+        db::create_thread(connection, sub, &thread.title);
+        Ok(create_response(state, StatusCode::CREATED, mime::APPLICATION_JSON, Body::empty()))
+    })
 }
 
 
-pub fn create_message(mut state: State, connection: db::Connection) -> Box<HandlerFuture> {
-    let thread_id = ThreadId::borrow_from(&state).id;
-    let headers = HeaderMap::borrow_from(&state);
-    let id = headers.get("token")
-        .and_then(|h| h.to_str().ok())
-        .and_then(|t| auth::decrypt(t).ok())
-        .and_then(|t| t.1["sub"].as_i64())
-        .and_then(|id| id.try_into().ok());
-
-    if let Some(id) = id {
-        with_json!(CreateMessage, state,
-                   move |msg| db::create_message(connection, id, thread_id, &msg.content),
-                   |_| create_response(&state, StatusCode::CREATED, mime::APPLICATION_JSON, Body::empty()))
-    } else {
-        Box::new(futures::lazy(|| {
-            let resp = create_response(&state, StatusCode::UNAUTHORIZED, mime::APPLICATION_JSON, Body::empty());
-            Ok((state, resp))
-        }))
-    }
+pub fn create_message(state: State, connection: db::Connection) -> Box<HandlerFuture> {
+    with_json(state, |state, message: CreateMessage| {
+        let thread_id = ThreadId::borrow_from(&state).id;
+        let headers = HeaderMap::borrow_from(&state);
+        let token = headers.get("token")?.to_str()?;
+        let sub: i32 = auth::decrypt(token)?.1["sub"].as_i64()?.try_into()?;
+        db::create_message(connection, sub, thread_id, &message.content);
+        Ok(create_response(&state, StatusCode::CREATED, mime::APPLICATION_JSON, Body::empty()))
+    })
 }
 
 pub fn router(state: S) -> Router {
