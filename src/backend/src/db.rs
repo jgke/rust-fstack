@@ -10,7 +10,9 @@ lazy_static! {
 
 pub fn create_account<T: IntoGenericConnection>(db: T, username: &str, password: &str) -> Option<i32> {
     let conn = db.into_generic_connection();
-    conn.query("INSERT INTO account (username, password, last_logged_in) VALUES ($1, $2, $3) RETURNING id", &[&username, &password, &chrono::Utc::now()]).ok()?
+    conn.query("INSERT INTO account (username, password, last_logged_in) \
+               VALUES ($1, $2, $3) \
+               RETURNING id", &[&username, &password, &chrono::Utc::now()]).ok()?
         .into_iter()
         .next()
         .map(|row| row.get(0))
@@ -18,7 +20,8 @@ pub fn create_account<T: IntoGenericConnection>(db: T, username: &str, password:
 
 pub fn get_password<T: IntoGenericConnection>(db: T, username: &str) -> Option<(i32, String)> {
     let conn = db.into_generic_connection();
-    conn.query("SELECT id, password FROM account WHERE username=$1", &[&username]).unwrap()
+    conn.query("SELECT id, password FROM account WHERE username=$1",
+               &[&username]).unwrap()
         .into_iter()
         .next()
         .map(|row| (row.get(0), row.get(1)))
@@ -26,13 +29,13 @@ pub fn get_password<T: IntoGenericConnection>(db: T, username: &str) -> Option<(
 
 pub fn update_last_logged_in<T: IntoGenericConnection>(db: T, username: &str) {
     let conn = db.into_generic_connection();
-    conn.query("UPDATE account SET last_logged_in=$2 WHERE username=$1", &[&username, &chrono::Utc::now()]).unwrap();
+    conn.query("UPDATE account SET last_logged_in=$2 WHERE username=$1",
+               &[&username, &chrono::Utc::now()]).unwrap();
 }
 
 pub fn get_account<T: IntoGenericConnection>(db: T, id: i32) -> Option<Account> {
     let conn = db.into_generic_connection();
-    conn.query("SELECT id, username FROM account WHERE id=$1", &[&id])
-        .unwrap()
+    conn.query("SELECT id, username FROM account WHERE id=$1", &[&id]).unwrap()
         .into_iter()
         .map(|row| Account { id: row.get(0), username: row.get(1) })
         .next()
@@ -45,7 +48,9 @@ pub fn create_thread<T: IntoGenericConnection>(db: T, account_id: i32, title: &s
 
 pub fn get_threads<T: IntoGenericConnection>(db: T) -> Vec<Thread> {
     let conn = db.into_generic_connection();
-    conn.query("SELECT t.id, a.username, t.title FROM thread t LEFT JOIN account a ON t.creator = a.id", &[])
+    conn.query("SELECT t.id, a.username, t.title \
+               FROM thread t \
+               LEFT JOIN account a ON t.creator = a.id", &[])
         .unwrap()
         .into_iter()
         .map(|row| Thread {

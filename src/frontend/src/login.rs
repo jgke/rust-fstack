@@ -10,6 +10,7 @@ pub struct Login {
     email: String,
     password: String,
     error: Option<LoginError>,
+    loading: bool,
 
     onlogin: Callback<String>,
 
@@ -48,6 +49,7 @@ impl Component for Login {
             email: "".to_string(),
             password: "".to_string(),
             error: None,
+            loading: false,
 
             onlogin: props.onlogin,
 
@@ -64,21 +66,31 @@ impl Component for Login {
             Msg::Login => {
                 self.error = None;
                 self.ft = Some(self.login());
-                return true;
+                self.loading = true;
             }
             Msg::CreateAccount => {
                 self.error = None;
                 self.ft = Some(self.create_account());
-                return true;
+                self.loading = true;
             }
             Msg::LoginSuccess(token) => {
+                self.loading = false;
                 self.onlogin.emit(token);
             }
             Msg::FetchError(error) => {
+                self.loading = false;
                 self.error = Some(error);
             }
         }
         true
+    }
+}
+
+fn spinner() -> Html<Login> {
+    html! {
+        <div class="spinner-border spinner-border-sm" role="status">
+            <span class="sr-only">{ "Loading..." }</span>
+        </div>
     }
 }
 
@@ -106,6 +118,8 @@ impl Renderable<Login> for Login {
 
                             <div class="login-buttons">
                                 <button type="submit" class="btn btn-primary" onclick=|e| { e.prevent_default(); Msg::Login }>{ "Log in "}</button>
+                                { if self.loading { spinner() } else { html! {} } }
+
                                 <button type="submit" class="btn btn-link" onclick=|e| { e.prevent_default(); Msg::CreateAccount }>{ "Create account"}</button>
                             </div>
 

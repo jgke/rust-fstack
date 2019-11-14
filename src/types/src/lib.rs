@@ -5,9 +5,35 @@ use serde::{Deserialize, Serialize};
 extern crate gotham_derive;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(not(cargo_web), derive(StateData, StaticResponseExtender))]
+pub struct Token {
+    pub token: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(not(cargo_web), derive(StateData, StaticResponseExtender))]
+pub struct CreateAccount {
+    pub username: String,
+    pub password: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Account {
     pub id: i32,
     pub username: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(not(cargo_web), derive(StateData, StaticResponseExtender))]
+pub struct Login {
+    pub username: String,
+    pub password: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(not(cargo_web), derive(StateData, StaticResponseExtender))]
+pub struct CreateThread {
+    pub title: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -20,40 +46,15 @@ pub struct Thread {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(not(cargo_web), derive(StateData, StaticResponseExtender))]
+pub struct CreateMessage {
+    pub content: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Message {
     pub id: i32,
     pub creator: String,
     pub content: String,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[cfg_attr(not(cargo_web), derive(StateData, StaticResponseExtender))]
-pub struct CreateAccount {
-    pub username: String,
-    pub password: String,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[cfg_attr(not(cargo_web), derive(StateData, StaticResponseExtender))]
-pub struct Login {
-    pub username: String,
-    pub password: String,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[cfg_attr(not(cargo_web), derive(StateData, StaticResponseExtender))]
-pub struct Token {
-    pub token: String,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[cfg_attr(not(cargo_web), derive(StateData, StaticResponseExtender))]
-pub struct CreateThread {
-    pub title: String,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[cfg_attr(not(cargo_web), derive(StateData, StaticResponseExtender))]
-pub struct CreateMessage {
-    pub content: String,
-}

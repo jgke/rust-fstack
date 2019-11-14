@@ -49,9 +49,9 @@ pub fn login(state: State, connection: db::Connection) -> Box<HandlerFuture> {
         connection.transaction(|tx| {
             let (id, password) = db::get_password(&tx, &account.username).ok_or(StatusCode::NOT_FOUND)?;
             let valid = verify(&account.password, &password)?;
-            db::update_last_logged_in(&tx, &account.username);
-            tx.commit().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
             if valid {
+                db::update_last_logged_in(&tx, &account.username);
+                tx.commit().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
                 let body = serde_json::to_string(&get_token(id))?;
                 Ok(create_response(&state, StatusCode::OK, mime::APPLICATION_JSON, body.to_string()))
             } else {
@@ -62,10 +62,8 @@ pub fn login(state: State, connection: db::Connection) -> Box<HandlerFuture> {
 }
 
 pub fn get_account(state: State, connection: db::Connection) -> (State, String) {
-    let account = {
-        let id = AccountId::borrow_from(&state).id;
-        db::get_account(connection, id)
-    };
+    let id = AccountId::borrow_from(&state).id;
+    let account = db::get_account(connection, id);
     (state, serde_json::to_string(&account).unwrap())
 }
 
@@ -74,10 +72,8 @@ pub fn get_threads(state: State, connection: db::Connection) -> (State, String) 
 }
 
 pub fn get_thread(state: State, connection: db::Connection) -> (State, String) {
-    let thread = {
-        let id = ThreadId::borrow_from(&state).id;
-        db::get_thread(connection, id)
-    };
+    let id = ThreadId::borrow_from(&state).id;
+    let thread = db::get_thread(connection, id);
     (state, serde_json::to_string(&thread).unwrap())
 }
 
