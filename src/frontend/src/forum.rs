@@ -113,9 +113,15 @@ impl Renderable<Forum> for Forum {
                     <div class="thread-list">
                         <div class="thread-list-header">
                             <h5>{ "Thread list" }</h5>
-                            { if !self.show_create_thread {
-                                html!{ <button class="btn btn-primary" onclick=|_| Msg::CreateThreadForm>{"Create thread"}</button> }
-                                                         } else { html!{} } }
+                            {
+                                if !self.show_create_thread {
+                                    html!{ <button
+                                            class="btn btn-primary"
+                                            onclick=|_| Msg::CreateThreadForm>{"Create thread"}</button> }
+                                } else {
+                                    html!{}
+                                }
+                            }
                         </div>
                         { self.create_thread_form() }
                         <div class="thread-list-content">

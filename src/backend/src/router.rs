@@ -31,7 +31,7 @@ struct AccountId {
 }
 
 fn get_token(id: i32) -> Token {
-    let token = auth::encrypt(json!({"sub": id})).unwrap();
+    let token = auth::sign(json!({"sub": id})).unwrap();
     Token { token }
 }
 
@@ -81,7 +81,7 @@ pub fn create_thread(state: State, connection: db::Connection) -> Box<HandlerFut
     with_json(state, |state, thread: CreateThread| {
         let headers = HeaderMap::borrow_from(&state);
         let token = headers.get("token")?.to_str()?;
-        let sub: i32 = auth::decrypt(token)?.1["sub"].as_i64()?.try_into()?;
+        let sub: i32 = auth::unsign(token)?.1["sub"].as_i64()?.try_into()?;
 
         db::create_thread(connection, sub, &thread.title);
         Ok(create_response(state, StatusCode::CREATED, mime::APPLICATION_JSON, Body::empty()))
@@ -94,7 +94,7 @@ pub fn create_message(state: State, connection: db::Connection) -> Box<HandlerFu
         let thread_id = ThreadId::borrow_from(&state).id;
         let headers = HeaderMap::borrow_from(&state);
         let token = headers.get("token")?.to_str()?;
-        let sub: i32 = auth::decrypt(token)?.1["sub"].as_i64()?.try_into()?;
+        let sub: i32 = auth::unsign(token)?.1["sub"].as_i64()?.try_into()?;
         db::create_message(connection, sub, thread_id, &message.content);
         Ok(create_response(&state, StatusCode::CREATED, mime::APPLICATION_JSON, Body::empty()))
     })

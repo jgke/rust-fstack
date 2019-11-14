@@ -7,7 +7,6 @@ use gotham::state::{FromState, State};
 use hyper::{Body, StatusCode};
 use std::panic::RefUnwindSafe;
 use std::str::from_utf8;
-use std::sync::Arc;
 
 use crate::db::{DB_CONNECTION, Connection};
 
@@ -40,8 +39,8 @@ where
 F: FnOnce(State, Connection) -> R + Send,
 R: IntoHandlerFuture {
     fn handle(self, state: State) -> Box<HandlerFuture> {
-        let conn = DB_CONNECTION.take().get().unwrap();
-        (self.f)(state, Connection::new(Arc::new(conn))).into_handler_future()
+        let conn = DB_CONNECTION.get().unwrap();
+        (self.f)(state, Connection::new(Box::new(conn))).into_handler_future()
     }
 }
 
