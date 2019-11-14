@@ -4,6 +4,8 @@ use yew::format::{Nothing, Json};
 use yew::services::fetch::{FetchService, FetchTask, Request, Response};
 use types::{CreateMessage, CreateThread, Message, Thread};
 
+use crate::api;
+
 pub struct Forum {
     updating: bool,
     threads: Option<Vec<Thread>>,
@@ -220,7 +222,7 @@ impl Forum {
                 }
             },
         );
-        let request = Request::get("http://localhost:80/thread").body(Nothing).unwrap();
+        let request = Request::get(api::all_threads()).body(Nothing).unwrap();
         self.fetch_service.fetch(request, callback)
     }
 
@@ -235,7 +237,7 @@ impl Forum {
                 }
             },
         );
-        let request = Request::get(format!("http://localhost:80/thread/{}", id)).body(Nothing).unwrap();
+        let request = Request::get(api::thread(id)).body(Nothing).unwrap();
         self.fetch_service.fetch(request, callback)
     }
 
@@ -252,7 +254,7 @@ impl Forum {
         );
         let body = CreateThread { title: self.create_thread_field.to_string() };
 
-        let request = Request::post("http://localhost:80/thread")
+        let request = Request::post(api::new_thread())
             .header("token", &self.token)
             .body(Ok(serde_json::to_string(&body).unwrap()))
             .unwrap();
@@ -271,7 +273,7 @@ impl Forum {
             },
         );
         let body = CreateMessage { content: self.create_message_field.to_string() };
-        let request = Request::post(format!("http://localhost:80/thread/{}", thread_id))
+        let request = Request::post(api::new_message(thread_id))
             .header("token", &self.token)
             .body(Ok(serde_json::to_string(&body).unwrap()))
             .unwrap();

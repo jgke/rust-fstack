@@ -6,6 +6,8 @@ use stdweb::traits::IEvent;
 
 use types::{CreateAccount, Token};
 
+use crate::api;
+
 pub struct Login {
     email: String,
     password: String,
@@ -154,7 +156,7 @@ impl Login {
 
         let body = CreateAccount { username, password };
 
-        let request = Request::post("http://localhost:80/account")
+        let request = Request::post(api::create_account())
             .body(Ok(serde_json::to_string(&body).unwrap()))
             .unwrap();
         self.fetch_service.fetch(request, callback)
@@ -181,7 +183,7 @@ impl Login {
 
         let body = types::Login { username, password };
 
-        let request = Request::post("http://localhost:80/login")
+        let request = Request::post(api::login())
             .body(Ok(serde_json::to_string(&body).unwrap()))
             .unwrap();
         self.fetch_service.fetch(request, callback)

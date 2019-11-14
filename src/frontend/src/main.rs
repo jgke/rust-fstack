@@ -4,8 +4,11 @@
 extern crate stdweb;
 #[macro_use]
 extern crate log;
+#[macro_use]
+extern crate lazy_static;
 extern crate web_logger;
 
+mod api;
 mod login;
 mod router;
 mod forum;

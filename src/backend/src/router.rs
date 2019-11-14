@@ -1,5 +1,6 @@
 use bcrypt::{DEFAULT_COST, hash, verify};
 use gotham::handler::HandlerFuture;
+use gotham::handler::assets::FileOptions;
 use gotham::helpers::http::response::create_response;
 use gotham::middleware::state::StateMiddleware;
 use gotham::pipeline::single::single_pipeline;
@@ -118,6 +119,12 @@ pub fn router(state: S) -> Router {
         route.post("/thread/:id")
             .with_path_extractor::<ThreadId>()
             .to_new_handler(r(create_message));
+        route.get("/").to_file("assets/index.html");
+        route.get("/*").to_dir(
+            FileOptions::new("assets")
+                .with_cache_control("no-cache")
+                .with_gzip(true)
+                .build());
     })
 }
 
