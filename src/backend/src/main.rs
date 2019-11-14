@@ -14,9 +14,10 @@ mod db_traits;
 mod handler_utils;
 mod router;
 
-pub fn main() {
+pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let state = router::S::new();
     let addr = "127.0.0.1:7878";
+    db::DB_CONNECTION.get()?; // Apply migrations
     println!("Listening for requests at http://{}", addr);
-    gotham::start(addr, router::router(state))
+    Ok(gotham::start(addr, router::router(state)))
 }
