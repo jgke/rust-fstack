@@ -8,10 +8,16 @@ Rust+Gotham.
 Requirements
 ------------
 
-cargo, cargo-web, docker (for the database), sass-rs. tmux for
-running the bootstrap script.
+`cargo`, `cargo-web`, `docker` (for the database) and `sass-rs.
+The bootstrap script requires `tmux`, but you can also run the
+commands within manually.
 
 Running
 -------
 
 `./bootstrap.sh`
+
+License
+-------
+
+MIT, see `LICENSE`
